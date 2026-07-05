@@ -1,0 +1,600 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Mochiy+Pop+One&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+/* ==========================================================
+   1. GLOBAL THEME VARIABLES (Default: Light Mode)
+   ========================================================== */
+:root {
+  --bg-primary: #ffffff;
+  --bg-surface: #f8f9fa;
+  --text-main: #1a1a1a;
+  --text-muted: #6c757d;
+  --border-color: rgba(208, 235, 225, 0.75);
+  --accent-green: #4b7a32;
+  --accent-green-hover: #2d501a;
+  --accent-green-light: #6aab44;
+  --glass-bg: rgba(255, 255, 255, 0.18);
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  --btn-glow: 0 0 18px rgba(75, 122, 50, 0.45);
+}
+
+/* ==========================================================
+   2. DARK THEME OVERRIDES
+   ========================================================== */
+[data-theme="dark"] {
+  --bg-primary: #121212;
+  --bg-surface: #1e1e1e;
+  --text-main: #f5f5f5;
+  --text-muted: #a0a0a0;
+  --border-color: rgba(51, 51, 51, 0.8);
+  --glass-bg: rgba(0, 0, 0, 0.30);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --text-shadow: none;
+  --btn-glow: 0 0 22px rgba(106, 171, 68, 0.5);
+}
+
+/* ==========================================================
+   3. RESET & BASE
+   ========================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+  min-height: 100vh;
+  /* Top fades to near-white, then reveals the image from ~30% down.
+     The bottom gets a soft dark vignette so welcome text stays readable. */
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.30) 28%,
+      rgba(0, 0, 0, 0.10) 55%,
+      rgba(0, 0, 0, 0.40) 100%
+    ),
+    url('WhatsApp Image 2026-06-21 at 7.22.04 PM.jpeg');
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+[data-theme="dark"] body {
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(12, 12, 12, 0.90) 0%,
+      rgba(12, 12, 12, 0.55) 28%,
+      rgba(0, 0, 0, 0.20) 55%,
+      rgba(0, 0, 0, 0.65) 100%
+    ),
+    url('WhatsApp Image 2026-06-21 at 7.22.04 PM.jpeg');
+}
+
+/* ==========================================================
+   4. HEADER / NAV  — clean white card
+   ========================================================== */
+header {
+  padding: 14px 28px;
+  margin: 18px 22px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(208, 235, 225, 0.8);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.12),
+    0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] header {
+  background: rgba(18, 18, 18, 0.92);
+  border: 1px solid rgba(75, 122, 50, 0.25);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.45),
+    0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.hero {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================
+   5. LOGO
+   ========================================================== */
+.logo {
+  color: var(--accent-green);
+  font-size: 30px;
+  font-family: 'Mochiy Pop One';
+  text-shadow: none;
+  letter-spacing: 1px;
+}
+
+[data-theme="dark"] .logo {
+  color: #8fd46a;
+  text-shadow: 0 0 16px rgba(106, 171, 68, 0.5);
+}
+
+/* ==========================================================
+   6. NAV BUTTONS  — pill style with shimmer + glow
+   ========================================================== */
+.button {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: 0.4px;
+  color: #ffffff;
+
+  /* gradient base */
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-light) 100%);
+  background-size: 200% 200%;
+  background-position: left center;
+
+  padding: 9px 20px;
+  border-radius: 50px;          /* pill shape */
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+
+  /* layered shadow */
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+  transition:
+    background-position 0.4s ease,
+    box-shadow 0.3s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 0.3s ease;
+}
+
+/* shimmer sweep pseudo-element */
+.button::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  transition: left 0.55s ease;
+}
+
+.button:hover::before {
+  left: 130%;
+}
+
+.button:hover {
+  background-position: right center;
+  transform: translateY(-3px) scale(1.04);
+  box-shadow:
+    var(--btn-glow),
+    0 6px 20px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.button:active {
+  transform: translateY(0px) scale(0.97);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Active / selected state */
+.button.active {
+  background-position: right center;
+  background: linear-gradient(135deg, var(--accent-green-hover) 0%, var(--accent-green) 100%);
+  box-shadow:
+    var(--btn-glow),
+    0 4px 16px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  transform: translateY(-2px) scale(1.06);
+  color: #ffffff;
+}
+
+/* Welcome page CTA button — slightly bigger */
+#welcome-view .button {
+  font-size: 15.5px;
+  padding: 11px 28px;
+}
+
+/* ==========================================================
+   7. ICON TOGGLE BUTTONS (Home + Theme)
+   ========================================================== */
+.theme-toggle,
+.home-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-light) 100%);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.18);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-toggle::before,
+.home-toggle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.25), transparent 70%);
+  pointer-events: none;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.12) rotate(18deg);
+  box-shadow: var(--btn-glow), 0 6px 18px rgba(0,0,0,0.3);
+}
+
+.home-toggle:hover {
+  transform: scale(1.12) translateY(-2px);
+  box-shadow: var(--btn-glow), 0 6px 18px rgba(0,0,0,0.3);
+}
+
+.theme-toggle:active,
+.home-toggle:active {
+  transform: scale(0.95);
+}
+
+.theme-toggle .icon,
+.home-toggle .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* ==========================================================
+   8. ICON SWAP SYSTEM
+   ========================================================== */
+.theme-toggle .sun-icon { display: none; }
+.theme-toggle .moon-icon { display: block; }
+
+[data-theme="dark"] .theme-toggle .moon-icon { display: none; }
+[data-theme="dark"] .theme-toggle .sun-icon {
+  display: block;
+  animation: sunReveal 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sunReveal {
+  from { transform: rotate(-90deg) scale(0); opacity: 0; }
+  to   { transform: rotate(0deg) scale(1);  opacity: 1; }
+}
+
+/* ==========================================================
+   9. PAGE SECTIONS
+   ========================================================== */
+.hidden { display: none !important; }
+
+.page-section {
+  padding: 40px;
+  text-align: center;
+  animation: fadeInSlideUp 0.5s ease-out forwards;
+}
+
+@keyframes fadeInSlideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ==========================================================
+   10. WELCOME VIEW
+   ========================================================== */
+#welcome-view {
+  display: flex;
+  flex-direction: column;
+  margin-top: 80px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 22px;
+}
+
+#welcome-view .one {
+  font-size: 58px;
+  font-family: 'Mochiy Pop One';
+  color: var(--accent-green);
+  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.6);
+  line-height: 1.1;
+}
+
+[data-theme="dark"] #welcome-view .one {
+  color: #8fd46a;
+  text-shadow: 0 0 30px rgba(106, 171, 68, 0.7), 0 2px 6px rgba(0,0,0,0.8);
+}
+
+#welcome-view .two {
+  max-width: 500px;
+  font-family: 'Poppins';
+  font-size: 1.15em;
+  line-height: 1.65;
+  font-style: italic;
+  color: #2a2a2a;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+}
+
+[data-theme="dark"] #welcome-view .two {
+  color: var(--text-muted);
+  text-shadow: none;
+}
+
+/* ==========================================================
+   11. GLOBAL SMOOTH TRANSITIONS
+   ========================================================== */
+body, header, p, div, h1, h2, section {
+  transition:
+    background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+h1, h2, div, p { color: var(--text-main); }
+
+/* ==========================================================
+   12. DASHBOARD CARDS
+   ========================================================== */
+
+.dashboard-card {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px;
+  border-radius: 24px;
+
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+
+  border: 1px solid rgba(208, 235, 225, 0.85);
+
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.45);
+
+  text-align: left;
+}
+
+[data-theme="dark"] .dashboard-card {
+  background: rgba(18,18,18,0.88);
+  border: 1px solid rgba(75,122,50,0.30);
+}
+
+.dashboard-card h2 {
+  color: var(--accent-green);
+  font-family: 'Poppins', sans-serif;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.dashboard-card h3 {
+  color: var(--accent-green);
+  margin-top: 25px;
+  margin-bottom: 15px;
+}
+
+
+/* ==========================================================
+   13. FORM GRID
+   ========================================================== */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 25px;
+}
+
+.form-grid input {
+  width: 100%;
+  padding: 13px 15px;
+
+  border-radius: 14px;
+  border: 1px solid rgba(180,180,180,0.35);
+
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.form-grid input:focus {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 10px rgba(75,122,50,0.25);
+}
+
+[data-theme="dark"] .form-grid input {
+  background: #222;
+  color: white;
+  border-color: #444;
+}
+
+
+/* ==========================================================
+   14. ACTION BUTTONS
+   ========================================================== */
+
+.action-row {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0;
+}
+
+.run-btn {
+  background:
+    linear-gradient(
+      135deg,
+      var(--accent-green),
+      var(--accent-green-light)
+    );
+
+  color: white;
+  border: none;
+
+  padding: 12px 26px;
+  border-radius: 50px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: all 0.25s ease;
+
+  box-shadow:
+    0 4px 15px rgba(0,0,0,0.18);
+}
+
+.run-btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    var(--btn-glow),
+    0 8px 22px rgba(0,0,0,0.25);
+}
+
+.run-btn:active {
+  transform: scale(0.97);
+}
+
+
+/* ==========================================================
+   15. TABLES
+   ========================================================== */
+
+.generated-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  margin-bottom: 25px;
+}
+
+.generated-table th {
+  background:
+    linear-gradient(
+      135deg,
+      var(--accent-green),
+      var(--accent-green-light)
+    );
+
+  color: white;
+  padding: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+.generated-table td {
+  padding: 10px;
+  border: 1px solid rgba(180,180,180,0.25);
+}
+
+.generated-table input {
+  width: 100%;
+  padding: 10px;
+
+  border-radius: 10px;
+  border: 1px solid rgba(180,180,180,0.35);
+
+  outline: none;
+}
+
+.generated-table input:focus {
+  border-color: var(--accent-green);
+}
+
+[data-theme="dark"] .generated-table input {
+  background: #222;
+  color: white;
+  border-color: #444;
+}
+
+
+/* ==========================================================
+   16. DISTANCE MATRIX
+   ========================================================== */
+
+.matrix-container {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.matrix-container table {
+  min-width: max-content;
+}
+
+.matrix-container input {
+  text-align: center;
+  min-width: 70px;
+}
+
+
+/* ==========================================================
+   17. OUTPUT BOX
+   ========================================================== */
+
+.output-box {
+  margin-top: 25px;
+
+  padding: 20px;
+
+  border-radius: 16px;
+
+  background:
+    rgba(75,122,50,0.08);
+
+  border:
+    1px solid rgba(75,122,50,0.18);
+
+  min-height: 120px;
+
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+[data-theme="dark"] .output-box {
+  background: rgba(75,122,50,0.10);
+  border-color: rgba(75,122,50,0.25);
+}
+
+
+/* ==========================================================
+   18. MOBILE RESPONSIVE
+   ========================================================== */
+
+@media (max-width: 768px) {
+
+  .dashboard-card {
+    padding: 20px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .generated-table {
+    font-size: 13px;
+  }
+
+  .run-btn {
+    width: 100%;
+  }
+}

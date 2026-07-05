@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PathMatrix</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- ADD LEAFLET CSS AND JS FOR MAP VISUALIZATION -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+
+<header>
+    <nav>
+        <span class="logo">PathMatrix</span>
+
+        <div class="hero">
+
+            <button class="home-toggle" onclick="goHome()" aria-label="Go to Welcome Page">
+                <svg class="icon home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+            </button>
+
+            <div class="button" onclick="navigateTo('optimization', this)">
+                Route Optimization
+            </div>
+
+            <div class="button" onclick="navigateTo('ridesharing', this)">
+                Ride Sharing
+            </div>
+
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme">
+
+                <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+
+                <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+
+            </button>
+
+        </div>
+    </nav>
+</header>
+
+<main>
+
+    <!-- WELCOME PAGE -->
+
+    <section id="welcome-view" class="page-section">
+
+        <div class="one">
+            Welcome to PathMatrix
+        </div>
+
+        <p class="two">
+            Select a service from the navigation bar above to begin optimizing
+            routes or dynamic ride-sharing.
+        </p>
+
+        <div class="button" onclick="navigateTo('optimization', this)">
+            Get Started
+        </div>
+
+    </section>
+
+
+
+    <!-- PART A -->
+
+    <section id="optimization-view" class="page-section hidden">
+
+        <div class="dashboard-card">
+
+            <h2>Part A : Route Optimization Dashboard</h2>
+
+            <div class="form-grid">
+
+                <input
+                    type="text"
+                    id="startA"
+                    placeholder="Start Location">
+
+                <input
+                    type="text"
+                    id="endA"
+                    placeholder="End Location">
+
+                <input
+                    type="number"
+                    id="budgetA"
+                    placeholder="Distance Budget">
+
+                <input
+                    type="number"
+                    id="thresholdA"
+                    placeholder="Category Threshold">
+
+                <input
+                    type="number"
+                    id="locationsCount"
+                    placeholder="Number of Locations">
+
+            </div>
+
+            <div class="action-row">
+
+                <button
+                    class="run-btn"
+                    onclick="generateLocationsTable()">
+
+                    Generate Locations Table
+
+                </button>
+
+            </div>
+
+            <div id="locationsTableContainer"></div>
+
+            <h3>Distance Matrix</h3>
+
+            <div class="action-row">
+
+                <button
+                    class="run-btn"
+                    onclick="generateDistanceMatrixA()">
+
+                    Generate Distance Matrix
+
+                </button>
+
+            </div>
+
+            <div id="distanceMatrixA"></div>
+
+            <div class="action-row">
+
+                <!-- Added onclick handler to trigger Part A JS -->
+                <button class="run-btn" onclick="runPartA()">
+                    Run Part A
+                </button>
+
+            </div>
+
+            <!-- Added Map Container for Part A -->
+            <div id="mapContainer" style="height: 400px; width: 100%; border-radius: 12px; margin-top: 25px; border: 1px solid var(--border-color); display: none;"></div>
+
+            <div class="output-box">
+
+                <strong>Part A Output</strong>
+
+                <br><br>
+
+                Results will appear here after execution.
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- PART B -->
+
+    <section id="ridesharing-view" class="page-section hidden">
+
+        <div class="dashboard-card">
+
+            <h2>Part B : Dynamic Ride Sharing Dashboard</h2>
+
+            <div class="form-grid">
+
+                <input
+                    type="text"
+                    id="startB"
+                    placeholder="Start Location">
+
+                <input
+                    type="text"
+                    id="endB"
+                    placeholder="End Location">
+
+                <input
+                    type="number"
+                    id="capacityB"
+                    placeholder="Vehicle Capacity">
+
+                <input
+                    type="number"
+                    id="requestCount"
+                    placeholder="Number of Requests">
+
+            </div>
+
+            <div class="action-row">
+
+                <button
+                    class="run-btn"
+                    onclick="generateRequestsTable()">
+
+                    Generate Requests Table
+
+                </button>
+
+            </div>
+
+            <div id="requestsTableContainer"></div>
+
+            <h3>Distance Matrix</h3>
+
+            <div class="action-row">
+
+                <button
+                    class="run-btn"
+                    onclick="generateDistanceMatrixB()">
+
+                    Generate Distance Matrix
+
+                </button>
+
+            </div>
+
+            <div id="distanceMatrixB"></div>
+
+            <div class="action-row">
+
+                <!-- Added onclick handler to trigger Part B JS -->
+                <button class="run-btn" onclick="runPartB()">
+                    Run Part B
+                </button>
+
+            </div>
+
+            <!-- Added Map Container for Part B -->
+            <div id="mapContainerB" style="height: 400px; width: 100%; border-radius: 12px; margin-top: 25px; border: 1px solid var(--border-color); display: none;"></div>
+
+            <div class="output-box">
+
+                <strong>Part B Output</strong>
+
+                <br><br>
+
+                Results will appear here after execution.
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+<script src="script.js"></script>
+
+</body>
+</html>

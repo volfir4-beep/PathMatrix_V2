@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Mochiy+Pop+One&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,500;1,600;1,700;1,800;1,900&display=swap');
 
+html {
+  overflow-x: hidden;
+}
+
 /* ==========================================================
    1. GLOBAL THEME VARIABLES (Default: Light Mode)
    ========================================================== */
@@ -7,7 +11,7 @@
   --bg-primary: #ffffff;
   --bg-surface: #f8f9fa;
   --text-main: #1a1a1a;
-  --text-muted: #6c757d;
+  --text-muted: #000000;
   --border-color: rgba(208, 235, 225, 0.75);
   --accent-green: #4b7a32;
   --accent-green-hover: #2d501a;
@@ -25,7 +29,7 @@
   --bg-primary: #121212;
   --bg-surface: #1e1e1e;
   --text-main: #f5f5f5;
-  --text-muted: #a0a0a0;
+  --text-muted: #e5e4e4;
   --border-color: rgba(51, 51, 51, 0.8);
   --glass-bg: rgba(0, 0, 0, 0.30);
   --glass-border: rgba(255, 255, 255, 0.10);
@@ -95,11 +99,12 @@ header {
     0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
-nav {
+/* nav {
   display: flex;
   align-items: center;
   gap: 20px;
   justify-content: space-between;
+  flex-wrap: wrap;
 }
 
 .hero {
@@ -107,6 +112,40 @@ nav {
   gap: 14px;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+} */
+
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* On desktop this wrapper "dissolves" — its children (logo, icon-group)
+   become direct flex items of nav, so they can be positioned independently
+   via order, instead of being stuck next to each other. */
+.nav-top-row {
+  display: contents;
+}
+
+.logo {
+  order: 1;
+}
+
+.nav-links {
+  order: 2;
+  display: flex;
+  gap: 14px;
+  flex: 1;
+  justify-content: center;
+}
+
+.icon-group {
+  order: 3;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 /* ==========================================================
@@ -114,7 +153,7 @@ nav {
    ========================================================== */
 .logo {
   color: var(--accent-green);
-  font-size: 30px;
+  font-size: clamp(20px, 5vw, 30px);
   font-family: 'Mochiy Pop One';
   text-shadow: none;
   letter-spacing: 1px;
@@ -313,7 +352,7 @@ nav {
 }
 
 #welcome-view .one {
-  font-size: 58px;
+  font-size: clamp(28px, 8vw, 58px);
   font-family: 'Mochiy Pop One';
   color: var(--accent-green);
   text-shadow: 0 2px 8px rgba(255, 255, 255, 0.6);
@@ -326,12 +365,12 @@ nav {
 }
 
 #welcome-view .two {
-  max-width: 500px;
+  max-width: min(500px, 90%); 
   font-family: 'Poppins';
-  font-size: 1.15em;
+  font-size: clamp(0.95em, 2.5vw, 1.15em);;
   line-height: 1.65;
   font-style: italic;
-  color: #2a2a2a;
+  color: #000000;
   text-shadow: 0 1px 2px rgba(255,255,255,0.5);
 }
 
@@ -527,6 +566,7 @@ h1, h2, div, p { color: var(--text-main); }
 }
 
 
+
 /* ==========================================================
    16. DISTANCE MATRIX
    ========================================================== */
@@ -582,19 +622,92 @@ h1, h2, div, p { color: var(--text-main); }
 
 @media (max-width: 768px) {
 
-  .dashboard-card {
-    padding: 20px;
+  header {
+    margin: 14px 16px;
+    padding: 12px 18px;
   }
 
-  .form-grid {
-    grid-template-columns: 1fr;
+  nav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
   }
 
-  .generated-table {
+  /* Re-establish this as a real row (undo `display: contents`)
+     so logo + icons sit together on their own line */
+  .nav-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  /* Turns the two nav buttons into a single segmented tab bar
+     instead of two separate floating pills */
+  .nav-links {
+    width: 100%;
+    background: var(--bg-surface);
+    padding: 5px;
+    border-radius: 50px;
+    gap: 4px;
+  }
+
+  .nav-links .button {
+    flex: 1;
+    text-align: center;
+    box-shadow: none; /* flat, so it reads as one connected control */
+  }
+
+  #welcome-view {
+    margin-top: 50px;
+  }
+
+  /* --- your existing rules stay as-is --- */
+  .dashboard-card { padding: 20px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .generated-table { font-size: 13px; }
+  .run-btn { width: 100%; }
+
+}
+
+@media (max-width: 480px) {
+
+  header {
+    margin: 10px;
+    padding: 10px 14px;
+  }
+
+  .hero {
+    gap: 8px;
+  }
+
+  .button {
+    padding: 8px 14px;
     font-size: 13px;
   }
 
-  .run-btn {
-    width: 100%;
+  .theme-toggle,
+  .home-toggle {
+    width: 34px;
+    height: 34px;
   }
+
+  .theme-toggle .icon,
+  .home-toggle .icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .page-section {
+    padding: 24px 16px;
+  }
+
+  .dashboard-card {
+    padding: 16px;
+  }
+
+  .dashboard-card h2 {
+    font-size: 1.2em;
+  }
+
 }

@@ -181,17 +181,62 @@ function generateRequestsTable() {
 }
 
 function generateDistanceMatrixB() {
-    const n = parseInt(document.getElementById("requestCount").value);
-    if (!n || n <= 0) return alert("Enter number of requests first");
+    const startNode = document.getElementById("startB").value.trim();
+    const endNode = document.getElementById("endB").value.trim();
+    const reqRows = document.querySelectorAll("#requestsTableContainer tbody tr");
 
+    let uniqueLocs = new Set();
+
+    // 1. Add Start Node First
+    if (startNode) uniqueLocs.add(startNode);
+
+    // 2. Add All Pickups
+    reqRows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        if (inputs[0].value.trim()) uniqueLocs.add(inputs[0].value.trim()); 
+    });
+
+    // 3. Add All Dropoffs
+    reqRows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        if (inputs[1].value.trim()) uniqueLocs.add(inputs[1].value.trim()); 
+    });
+
+    // 4. Add End Node Last
+    if (endNode) uniqueLocs.add(endNode);
+
+    const locations = Array.from(uniqueLocs);
+    const n = locations.length;
+
+    if (n < 2) {
+        alert("Please ensure Start, End, and at least one request are filled in first.");
+        return;
+    }
+
+    // 5. Generate the Matrix
     let html = `<div class="matrix-container"><table class="generated-table">`;
+    
+    // Create Header Row
+    html += `<tr><th></th>${locations.map(loc => `<th>${loc}</th>`).join('')}</tr>`;
+
+    // Create Matrix Rows
     for (let i = 0; i < n; i++) {
-        html += "<tr>";
+        html += `<tr><td><strong>${locations[i]}</strong></td>`; // Row Label
         for (let j = 0; j < n; j++) {
-            html += `<td><input type="number" value="${i === j ? 0 : ''}" placeholder="0" style="width:70px"></td>`;
+            html += `
+            <td>
+                <input
+                    type="number"
+                    value="${i === j ? 0 : ''}"
+                    placeholder="0"
+                    style="width:70px"
+                >
+            </td>
+            `;
         }
         html += "</tr>";
     }
+
     html += `</table></div>`;
     document.getElementById("distanceMatrixB").innerHTML = html;
 }
@@ -245,13 +290,27 @@ function runPartA() {
     .then(data => {
         if (data.status === 'success') {
             const res = data.data;
-            outputBox.innerHTML = `<strong>Optimal Route Found:</strong> ${res.optimal_route.join(' → ')}<br><br><strong>Total Effective Score:</strong> ${res.total_score}<br>`;
+            
+            // Calculate the total distance of the optimal route using the matrix
+            let totalDist = 0;
+            for (let i = 0; i < res.optimal_route.length - 1; i++) {
+                totalDist += distanceDict[res.optimal_route[i]][res.optimal_route[i+1]];
+            }
+
+            // Display Route, Distance, and Score
+            outputBox.innerHTML = `
+                <strong>Optimal Route Found:</strong> ${res.optimal_route.join(' → ')}<br><br>
+                <strong>Total Distance:</strong> ${totalDist} km<br><br>
+                <strong>Total Effective Score:</strong> ${res.total_score}<br>
+            `;
+            
             drawVirtualRoute(res.optimal_route, res.coordinates, 'A');
         } else {
             outputBox.innerHTML = `<strong style="color:red;">Error:</strong> ${data.message}`;
         }
     })
-    .catch((error) => outputBox.innerHTML = `<strong style="color:red;">Connection Error:</strong> Ensure the Flask server is running in your VS Code terminal.`);
+    .catch((error) => outputBox.innerHTML = `<strong style="color:red;">Connection Error:</strong> Ensure the Flask server is running in your terminal.`);  
+    
 }
 
 function runPartB() {
@@ -272,8 +331,13 @@ function runPartB() {
             "base_distance": parseFloat(inputs[2].value) || 0, "flexibility_margin": parseFloat(inputs[3].value) || 0
         };
     });
-
-    const uniqueNodes = Array.from(new Set([startNode, endNode, ...Object.values(requestsPayload).map(r => r.pickup), ...Object.values(requestsPayload).map(r => r.drop)]));
+    // Ensure extraction order exactly matches the Matrix generation order
+    let uniqueLocs = new Set();
+    if (startNode) uniqueLocs.add(startNode);
+    Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.pickup)); // All Pickups
+    Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.drop));   // All Drops
+    if (endNode) uniqueLocs.add(endNode);
+    const uniqueNodes = Array.from(uniqueLocs);
     const matrixArray = extractDistanceMatrix("distanceMatrixB", uniqueNodes.length);
     
     let distanceDict = {};
@@ -282,9 +346,13 @@ function runPartB() {
         uniqueNodes.forEach((node2, j) => distanceDict[node1][node2] = matrixArray[i][j]);
     });
 
+    // Construct Final Payload for Batch Processing
     const payloadB = {
-        "vehicle_capacity": capacity, "current_route": [startNode, endNode],
-        "active_requests": {}, "new_request": requestsPayload["Req1"], "distance_matrix": distanceDict
+        "start": startNode,
+        "end": endNode,
+        "vehicle_capacity": capacity,
+        "requests": requestsPayload, // Sending ALL requests instead of just Req1
+        "distance_matrix": distanceDict
     };
 
     const outputBox = document.querySelector("#ridesharing-view .output-box");

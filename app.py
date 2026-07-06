@@ -58,5 +58,5 @@ def run_optimization_b():
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
-    print("Jarvis Backend API initialized on http://127.0.0.1:5000")
+    print("Team Dijkstra Backend API initialized on http://127.0.0.1:5000")
     app.run(debug=True, port=5000)

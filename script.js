@@ -164,18 +164,57 @@ function generateDistanceMatrixA() {
 
 // PART B Generators
 function generateRequestsTable() {
-    const n = parseInt(document.getElementById("requestCount").value);
-    if (!n || n <= 0) return alert("Enter a valid number of requests");
+    const reqCount = parseInt(document.getElementById("requestCount").value);
+    if (!reqCount || reqCount < 1) {
+        alert("Please enter a valid number of requests.");
+        return;
+    }
 
-    let html = `<table class="generated-table"><thead><tr><th>Pickup</th><th>Dropoff</th><th>Base Distance</th><th>Flexibility</th></tr></thead><tbody>`;
-    for (let i = 0; i < n; i++) {
+    // 1. Memorize existing data before overwriting
+    const existingRows = document.querySelectorAll("#requestsTableContainer tbody tr");
+    let savedData = [];
+    if (existingRows) {
+        existingRows.forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            savedData.push({
+                pickup: inputs[0] ? inputs[0].value : "",
+                drop: inputs[1] ? inputs[1].value : "",
+                base: inputs[2] ? inputs[2].value : "",
+                flex: inputs[3] ? inputs[3].value : ""
+            });
+        });
+    }
+
+    // 2. Build the new table
+    let html = `<table class="generated-table">
+        <thead>
+            <tr>
+                <th>Pickup</th>
+                <th>Dropoff</th>
+                <th>Base Distance</th>
+                <th>Flexibility</th>
+            </tr>
+        </thead>
+        <tbody>`;
+    
+    for (let i = 0; i < reqCount; i++) {
+        // Retrieve saved values if they exist for this row, otherwise leave blank
+        let p = "", d = "", b = "", f = "";
+        if (i < savedData.length) {
+            p = savedData[i].pickup;
+            d = savedData[i].drop;
+            b = savedData[i].base;
+            f = savedData[i].flex;
+        }
+        
         html += `<tr>
-            <td><input type="text" placeholder="Pickup"></td>
-            <td><input type="text" placeholder="Dropoff"></td>
-            <td><input type="number" placeholder="Distance"></td>
-            <td><input type="number" placeholder="Flexibility"></td>
+            <td><input type="text" value="${p}" placeholder="e.g. A"></td>
+            <td><input type="text" value="${d}" placeholder="e.g. B"></td>
+            <td><input type="number" value="${b}" placeholder="0"></td>
+            <td><input type="number" value="${f}" placeholder="0"></td>
         </tr>`;
     }
+    
     html += `</tbody></table>`;
     document.getElementById("requestsTableContainer").innerHTML = html;
 }
@@ -187,22 +226,15 @@ function generateDistanceMatrixB() {
 
     let uniqueLocs = new Set();
 
-    // 1. Add Start Node First
     if (startNode) uniqueLocs.add(startNode);
-
-    // 2. Add All Pickups
     reqRows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         if (inputs[0].value.trim()) uniqueLocs.add(inputs[0].value.trim()); 
     });
-
-    // 3. Add All Dropoffs
     reqRows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         if (inputs[1].value.trim()) uniqueLocs.add(inputs[1].value.trim()); 
     });
-
-    // 4. Add End Node Last
     if (endNode) uniqueLocs.add(endNode);
 
     const locations = Array.from(uniqueLocs);
@@ -213,21 +245,48 @@ function generateDistanceMatrixB() {
         return;
     }
 
-    // 5. Generate the Matrix
-    let html = `<div class="matrix-container"><table class="generated-table">`;
+    // 1. Memorize existing matrix data by mapping Row Name to Column Name
+    let savedMatrix = {};
+    const existingTable = document.querySelector("#distanceMatrixB table");
     
-    // Create Header Row
+    if (existingTable) {
+        // Get the header names (skipping the first empty top-left cell)
+        const headers = Array.from(existingTable.querySelectorAll("th")).slice(1).map(th => th.innerText.trim());
+        const rows = existingTable.querySelectorAll("tr");
+        
+        // Loop through rows (skipping the header row itself)
+        for(let i = 1; i < rows.length; i++) {
+            const rowLabel = rows[i].querySelector("td strong").innerText.trim();
+            savedMatrix[rowLabel] = {};
+            const inputs = rows[i].querySelectorAll("input");
+            inputs.forEach((input, j) => {
+                savedMatrix[rowLabel][headers[j]] = input.value;
+            });
+        }
+    }
+
+    // 2. Generate the new matrix
+    let html = `<div class="matrix-container"><table class="generated-table">`;
     html += `<tr><th></th>${locations.map(loc => `<th>${loc}</th>`).join('')}</tr>`;
 
-    // Create Matrix Rows
     for (let i = 0; i < n; i++) {
-        html += `<tr><td><strong>${locations[i]}</strong></td>`; // Row Label
+        let rowLoc = locations[i];
+        html += `<tr><td><strong>${rowLoc}</strong></td>`; // Row Label
+        
         for (let j = 0; j < n; j++) {
+            let colLoc = locations[j];
+            let val = i === j ? 0 : ''; 
+            
+            // Check if we have a saved value for this exact Row to Column path
+            if (savedMatrix[rowLoc] && savedMatrix[rowLoc][colLoc] !== undefined) {
+                val = savedMatrix[rowLoc][colLoc];
+            }
+
             html += `
             <td>
                 <input
                     type="number"
-                    value="${i === j ? 0 : ''}"
+                    value="${val}"
                     placeholder="0"
                     style="width:70px"
                 >

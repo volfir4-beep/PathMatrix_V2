@@ -438,3 +438,35 @@ function runPartB() {
     })
     .catch((error) => outputBox.innerHTML = `<strong style="color:red;">Connection Error:</strong> Ensure the Flask server is running in your VS Code terminal.`);
 }
+
+/* ==================================================
+   5. RESET (PART B ONLY)
+   ================================================== */
+function resetPartB() {
+    // 1. Clear the top form inputs
+    document.getElementById("startB").value = "";
+    document.getElementById("endB").value = "";
+    document.getElementById("capacityB").value = "";
+    document.getElementById("requestCount").value = "";
+
+    // 2. Empty out the generated requests table and distance matrix
+    document.getElementById("requestsTableContainer").innerHTML = "";
+    document.getElementById("distanceMatrixB").innerHTML = "";
+
+    // 3. Reset the output box back to its default message
+    const outputBox = document.querySelector("#ridesharing-view .output-box");
+    outputBox.innerHTML = `<strong>Part B Output</strong><br><br>Results will appear here after execution.`;
+
+    // 4. Hide and clear the map (remove drawn route + markers, keep the map instance)
+    const mapContainerB = document.getElementById("mapContainerB");
+    mapContainerB.style.display = "none";
+
+    if (mapB) {
+        if (pathLayerB) {
+            mapB.removeLayer(pathLayerB);
+            pathLayerB = null;
+        }
+        nodeLayersB.forEach(marker => mapB.removeLayer(marker));
+        nodeLayersB = [];
+    }
+}

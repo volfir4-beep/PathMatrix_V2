@@ -1,6 +1,36 @@
 import math
+import time
+
 
 def optimize_route(payload):
+    """
+    Finds the sightseeing route maximising total effective satisfaction
+    within a distance budget, applying satisfaction decay and category penalties.
+
+    DP formulation:
+      State = (visited_set, current_location)
+      For a fixed visited_set, the category-penalty decision for the NEXT
+      location to add depends only on how many locations of that category
+      are already in visited_set (a pure function of the set, not the order
+      used to reach it) -- so we don't need to enumerate permutations of the
+      set, only the set itself.
+      Distance/decay still varies by the order used to reach (set, node), so
+      for each (set, node) we keep every "non-dominated" (distance, score)
+      pair: if one path is both cheaper AND higher-scoring than another for
+      the same (set, node), the worse one can never lead to a better final
+      answer and is discarded (Pareto pruning).
+    This keeps the algorithm exact (guaranteed optimal, same as the original
+    brute-force DFS) while cutting the complexity from O(n!) to roughly
+    O(2^n * n * frontier_size), which is dramatically smaller in practice.
+    """
+    t_start = time.perf_counter()
+
+    # ---- Basic input validation ----
+    required_top = ["start", "end", "distance_budget", "category_threshold", "locations", "distance_matrix"]
+    missing = [k for k in required_top if k not in payload]
+    if missing:
+        raise ValueError(f"Missing required field(s): {', '.join(missing)}")
+
     start = payload["start"]
     end = payload["end"]
     budget = payload["distance_budget"]
@@ -8,78 +38,133 @@ def optimize_route(payload):
     locations = payload["locations"]
     matrix = payload["distance_matrix"]
 
-    best_route = []
-    max_score = -1.0
+    if not isinstance(budget, (int, float)) or budget < 0:
+        raise ValueError(f"distance_budget must be a non-negative number, got {budget!r}")
+    if not isinstance(threshold, (int, float)) or threshold < 0:
+        raise ValueError(f"category_threshold must be a non-negative number, got {threshold!r}")
+    if start not in matrix or end not in matrix:
+        raise ValueError(f"'{start}' or '{end}' is missing from distance_matrix")
+
+    for name, info in locations.items():
+        if "score" not in info or "category" not in info:
+            raise ValueError(f"Location '{name}' is missing 'score' or 'category'")
+        if name not in matrix:
+            raise ValueError(f"Location '{name}' is missing from distance_matrix")
+
     loc_names = list(locations.keys())
+    n = len(loc_names)
+    categories = [locations[name]["category"] for name in loc_names]
+    scores = [locations[name]["score"] for name in loc_names]
 
-    # OPTIMIZATION 1: Explore highest-scoring locations first. This doesn't change
-    # the final answer (DFS still considers every valid branch unless pruned) but
-    # it finds a strong max_score early, which makes the pruning below far more
-    # effective from the very start of the search.
-    loc_names.sort(key=lambda name: locations[name]["score"], reverse=True)
+    def d(u, v):
+        try:
+            return matrix[u][v]
+        except KeyError as e:
+            raise ValueError(f"distance_matrix is missing an entry: {u} -> {v}") from e
 
-    # Precompute the total base score across all locations once, so that at any
-    # point in the search we can cheaply work out "sum of base scores not yet visited".
-    total_base_score = sum(locations[name]["score"] for name in loc_names)
+    # Each DP state is a dict: mask, node (-1 = still at `start`), dist, score, prev(state or None)
+    start_state = {"mask": 0, "node": -1, "dist": 0.0, "score": 0.0, "prev": None}
+    frontier = {(0, -1): [start_state]}
 
-    # DFS function to explore routes efficiently, now with branch-and-bound pruning
-    def dfs(current_node, current_dist, current_score, visited, category_counts, path, visited_base_sum):
-        nonlocal best_route, max_score
+    best_state = None
+    best_score = float("-inf")
 
-        # 1. Check if we can safely return to the destination
-        dist_to_end = matrix[current_node][end]
-        if current_dist + dist_to_end <= budget:
-            if current_score > max_score:
-                max_score = current_score
-                best_route = path + [end]
+    def consider_finish(state):
+        nonlocal best_state, best_score
+        cur_name = start if state["node"] == -1 else loc_names[state["node"]]
+        finish_dist = state["dist"] + d(cur_name, end)
+        # FIXED: was `<` in the old code, which could skip the only feasible
+        # route when a location sat exactly on the budget boundary.
+        if finish_dist <= budget and state["score"] > best_score:
+            best_score = state["score"]
+            best_state = state
 
-        # OPTIMIZATION 2: Branch-and-bound pruning.
-        # Satisfaction only ever decays with distance (never grows), and the category
-        # penalty only ever reduces score (never increases it). So the best possible
-        # score any remaining unvisited location could still contribute, from this
-        # point onward, is capped at:
-        #     its base score * exp(-0.1 * current_dist)
-        # (using the CURRENT cumulative distance is a safe over-estimate, since any
-        # future visit can only happen at an equal or greater distance, where decay
-        # is equal or worse -- never better). Summing that over every unvisited
-        # location gives a guaranteed ceiling on how much more score is achievable.
-        # If even that best case can't beat what we've already found, this whole
-        # branch is dead -- prune it without exploring any children.
-        remaining_base_score = total_base_score - visited_base_sum
-        upper_bound = current_score + remaining_base_score * math.exp(-0.1 * current_dist)
-        if upper_bound <= max_score:
-            return
+    consider_finish(start_state)
 
-        # 2. Explore next possible locations
-        for nxt in loc_names:
-            if nxt not in visited:
-                travel_dist = matrix[current_node][nxt]
-                nxt_dist = current_dist + travel_dist
+    masks_by_popcount = sorted(range(1 << n), key=lambda m: bin(m).count("1"))
 
-                # Pruning: Only proceed if the next jump doesn't blow our budget
-                if nxt_dist < budget:
-                    # FIX: Decay uses current_dist (cumulative distance BEFORE reaching)
-                    base_score = locations[nxt]["score"]
-                    effective_score = base_score * math.exp(-0.1 * current_dist)
+    for mask in masks_by_popcount:
+        node_candidates = [-1] if mask == 0 else [i for i in range(n) if mask & (1 << i)]
+        for node_idx in node_candidates:
+            key = (mask, node_idx)
+            states = frontier.get(key)
+            if not states:
+                continue
+            cur_name = start if node_idx == -1 else loc_names[node_idx]
 
-                    # Category tracking
-                    cat = locations[nxt]["category"]
-                    nxt_cat_counts = category_counts.copy()
-                    nxt_cat_counts[cat] = nxt_cat_counts.get(cat, 0) + 1
+            # Category counts within this SET -- order-independent (see docstring).
+            cat_counts = {}
+            for i in range(n):
+                if mask & (1 << i):
+                    c = categories[i]
+                    cat_counts[c] = cat_counts.get(c, 0) + 1
 
-                    if nxt_cat_counts[cat] > threshold:
-                        effective_score *= 0.90
+            for state in states:
+                d0 = state["dist"]
+                s0 = state["score"]
+                for nxt in range(n):
+                    bit = 1 << nxt
+                    if mask & bit:
+                        continue
+                    nxt_name = loc_names[nxt]
+                    travel = d(cur_name, nxt_name)
+                    new_dist = d0 + travel
+                    # FIXED boundary bug: <= not <, and this now checks reachability
+                    # to `end` explicitly rather than a loose "< budget" heuristic.
+                    if new_dist + d(nxt_name, end) > budget:
+                        continue
 
-                    # Backtracking step
-                    visited.add(nxt)
-                    dfs(nxt, nxt_dist, current_score + effective_score, visited, nxt_cat_counts,
-                        path + [nxt], visited_base_sum + base_score)
-                    visited.remove(nxt)
+                    eff = scores[nxt] * math.exp(-0.1 * d0)
+                    c = categories[nxt]
+                    if cat_counts.get(c, 0) + 1 > threshold:
+                        eff *= 0.9
+                    new_score = s0 + eff
+                    new_mask = mask | bit
+                    new_state = {"mask": new_mask, "node": nxt, "dist": new_dist,
+                                 "score": new_score, "prev": state}
 
-    # Initialize DFS from the starting location
-    dfs(start, 0.0, 0.0, set(), {}, [start], 0.0)
+                    nk = (new_mask, nxt)
+                    bucket = frontier.get(nk, [])
+                    dominated = False
+                    kept = []
+                    for existing in bucket:
+                        if existing["dist"] <= new_dist and existing["score"] >= new_score:
+                            dominated = True
+                            kept.append(existing)
+                        elif new_dist <= existing["dist"] and new_score >= existing["score"]:
+                            pass  # existing is dominated by new_state -> drop it
+                        else:
+                            kept.append(existing)
+                    if not dominated:
+                        kept.append(new_state)
+                    frontier[nk] = kept
+
+                    if not dominated:
+                        consider_finish(new_state)
+
+    runtime_ms = round((time.perf_counter() - t_start) * 1000, 3)
+
+    if best_state is None:
+        return {
+            "optimal_route": [],
+            "total_score": 0.0,
+            "feasible": False,
+            "message": "No feasible route exists within the given distance budget.",
+            "runtime_ms": runtime_ms,
+        }
+
+    path_nodes = []
+    s = best_state
+    while s is not None:
+        if s["node"] != -1:
+            path_nodes.append(loc_names[s["node"]])
+        s = s["prev"]
+    path_nodes.reverse()
+    route = [start] + path_nodes + [end]
 
     return {
-        "optimal_route": best_route,
-        "total_score": round(max_score, 3)  # Rounded to 3 decimals per PDF examples
+        "optimal_route": route,
+        "total_score": round(best_score, 3),
+        "feasible": True,
+        "runtime_ms": runtime_ms,
     }

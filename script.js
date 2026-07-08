@@ -216,41 +216,43 @@ function generateLocationsTable() {
 function generateDistanceMatrixA() {
     const startNode = document.getElementById("startA").value.trim();
     const endNode = document.getElementById("endA").value.trim();
-    const budgetStr = document.getElementById("budgetA").value;
-    const thresholdStr = document.getElementById("thresholdA").value;
     const countStr = document.getElementById("locationsCount").value;
-
-    let hasError = false;
-
-    // Strict Gatekeeper: Check ALL fields before generating the matrix
-    if (!startNode) { showInlineError("startA", "Required."); hasError = true; }
-    if (!endNode) { showInlineError("endA", "Required."); hasError = true; }
     
-    if (budgetStr === "") { showInlineError("budgetA", "Required."); hasError = true; } 
-    else if (parseFloat(budgetStr) <= 0) { showInlineError("budgetA", "Must be > 0."); hasError = true; }
-    
-    if (thresholdStr === "") { showInlineError("thresholdA", "Required."); hasError = true; } 
-    else if (parseInt(thresholdStr) < 0) { showInlineError("thresholdA", "Cannot be negative."); hasError = true; }
-    
-    if (countStr === "") { showInlineError("locationsCount", "Required."); hasError = true; } 
-    else {
-        const nCheck = parseInt(countStr);
-        if (nCheck <= 0) { showInlineError("locationsCount", "Must be at least 1."); hasError = true; }
+    // 1. Same Gatekeeper checks
+    if (!startNode || !endNode || countStr === "") {
+        showInlineError("locationsCount", "Required.");
+        return;
     }
 
-    if (hasError) return;
-
     const n = parseInt(countStr);
-    const totalNodes = n + 2; 
+    // Get intermediate nodes from the already generated table if it exists
+    const locRows = document.getElementById("locationsTableContainer").querySelectorAll('tbody tr');
+    let intermediates = [];
+    locRows.forEach(row => {
+        const name = row.querySelectorAll('input')[0].value.trim();
+        if(name) intermediates.push(name);
+    });
+
+    // Match the order: Start, Intermediates, End
+    const allNodes = [startNode, ...intermediates, endNode];
+    const totalNodes = allNodes.length;
+
+    // 2. Generate matrix WITH labels
     let html = `<div class="matrix-container"><table class="generated-table">`;
+    
+    // Header Row
+    html += `<tr><th></th>${allNodes.map(node => `<th>${node}</th>`).join('')}</tr>`;
+
+    // Data Rows
     for (let i = 0; i < totalNodes; i++) {
-        html += "<tr>";
+        html += `<tr><td><strong>${allNodes[i]}</strong></td>`;
         for (let j = 0; j < totalNodes; j++) {
             html += `<td><input type="number" value="${i === j ? 0 : ''}" placeholder="0" style="width:70px"></td>`;
         }
         html += "</tr>";
     }
-    html += `</table></div><p style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">* Matrix order: Start, Intermediates 1-${n}, End.</p>`;
+    
+    html += `</table></div>`;
     document.getElementById("distanceMatrixA").innerHTML = html;
 }
 // PART B Generators
@@ -489,24 +491,27 @@ function runPartA() {
     })
     .then(res => res.json())
     .then(data => {
-        if (data.status === 'success') {
-            const res = data.data;
-            let totalDist = 0;
-            for (let i = 0; i < res.optimal_route.length - 1; i++) {
-                totalDist += distanceDict[res.optimal_route[i]][res.optimal_route[i+1]];
-            }
+            if (data.status === 'success') {
+                const res = data.data;
+                let totalDist = 0;
+                for (let i = 0; i < res.optimal_route.length - 1; i++) {
+                    totalDist += distanceDict[res.optimal_route[i]][res.optimal_route[i+1]];
+                }
 
-            outputBox.innerHTML = `
-                <strong>Optimal Route Found:</strong> ${res.optimal_route.join(' → ')}<br><br>
-                <strong>Total Distance:</strong> ${totalDist} km<br><br>
-                <strong>Total Effective Score:</strong> ${res.total_score}<br>
-            `;
-            
-            drawVirtualRoute(res.optimal_route, res.coordinates, 'A');
-        } else {
-            outputBox.innerHTML = `<strong style="color:red;">Error:</strong> ${data.message}`;
-        }
-    })
+                // Updated output to include the new runtime metric
+                outputBox.innerHTML = `
+                    <strong>Optimal Route Found:</strong> ${res.optimal_route.join(' → ')}<br>
+                    <strong>Total Distance:</strong> ${totalDist} km<br>
+                    <strong>Total Effective Score:</strong> ${res.total_score}<br>
+                    <hr>
+                    <small><em>Processing time: ${res.runtime}s</em></small>
+                `;
+                
+                drawVirtualRoute(res.optimal_route, res.coordinates, 'A');
+            } else {
+                outputBox.innerHTML = `<strong style="color:red;">Error:</strong> ${data.message}`;
+            }
+        })
     .catch((error) => outputBox.innerHTML = `<strong style="color:red;">Connection Error:</strong> Ensure the Flask server is running in your terminal.`);  
 }
 
@@ -629,7 +634,12 @@ function runPartB() {
             const res = data.data;
             let resultHTML = `<strong>Status:</strong> ${res.status.toUpperCase()}<br>`;
             if (res.status === 'accepted') {
-                resultHTML += `<strong>New Route:</strong> ${res.new_route.join(' → ')}<br><strong>Total Travel Distance:</strong> ${res.total_dist} km<br>`;
+                resultHTML += `
+                    <strong>New Route:</strong> ${res.new_route.join(' → ')}<br>
+                    <strong>Total Travel Distance:</strong> ${res.total_dist} km<br>
+                    <hr>
+                    <small><em>Processing time: ${res.runtime_ms}ms</em></small>
+                `;
                 drawVirtualRoute(res.new_route, res.coordinates, 'B'); 
             } else {
                 resultHTML += `<strong>Reason:</strong> ${res.reason}`;

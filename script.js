@@ -1,3 +1,46 @@
+function showCustomError(buttonId, message) {
+    const button = document.getElementById(buttonId);
+    if (!button) {
+        alert(message); // Fallback just in case the button ID is wrong
+        return;
+    }
+
+    // 1. Remove any existing error banner above this button so they don't stack up
+    const existingError = button.previousElementSibling;
+    if (existingError && existingError.classList.contains('custom-error-alert')) {
+        existingError.remove();
+    }
+
+    // 2. Create the new custom error banner
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'custom-error-alert';
+    errorDiv.innerHTML = `⚠️ ${message}`;
+    
+    // 3. Apply the Red Background and White Font styling
+    Object.assign(errorDiv.style, {
+        backgroundColor: '#d32f2f',
+        color: 'white',
+        padding: '12px',
+        marginBottom: '15px',
+        borderRadius: '6px',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+        transition: 'opacity 0.3s ease-in-out'
+    });
+
+    // 4. Inject it into the page directly above the button
+    button.parentNode.insertBefore(errorDiv, button);
+
+    // 5. Automatically remove the error after 3.5 seconds
+    setTimeout(() => {
+        errorDiv.style.opacity = '0';
+        setTimeout(() => {
+            if (errorDiv.parentNode) errorDiv.remove();
+        }, 300);
+    }, 3500);
+}
+
 /* ==================================================
    1. NAVIGATION & THEME
    ================================================== */
@@ -48,7 +91,6 @@ function drawVirtualRoute(routeSequence, coordinateData, part) {
     
     let currentMap;
 
-    // 1. Map Initialization (The part you just updated)
     if (part === 'A') {
         if (!mapA) {
             mapA = L.map(containerId);
@@ -75,12 +117,11 @@ function drawVirtualRoute(routeSequence, coordinateData, part) {
 
     let latLngs = [];
 
-    // 2. Plot nodes
     routeSequence.forEach((nodeName, index) => {
         if (!coordinateData[nodeName]) return;
         
         let coords = coordinateData[nodeName];
-        let point = [coords.lat, coords.lng]; // Explicitly using lat and lng
+        let point = [coords.lat, coords.lng]; 
         latLngs.push(point);
 
         let marker = L.circleMarker(point, {
@@ -91,7 +132,6 @@ function drawVirtualRoute(routeSequence, coordinateData, part) {
         else nodeLayersB.push(marker);
     });
 
-    // 3. Draw path
     let newPath = L.polyline(latLngs, {
         color: '#6aab44', weight: 4, dashArray: '5, 10'
     }).addTo(currentMap);
@@ -99,8 +139,6 @@ function drawVirtualRoute(routeSequence, coordinateData, part) {
     if (part === 'A') pathLayerA = newPath;
     else pathLayerB = newPath;
 
-    // 4. THIS IS WHERE THE LAST LINE GOES
-    // Auto-adjust the map view to fit the drawn route perfectly
     currentMap.fitBounds(newPath.getBounds(), { padding: [40, 40] });
 }
 
@@ -125,11 +163,38 @@ function extractDistanceMatrix(containerId, n) {
 
 // PART A Generators
 function generateLocationsTable() {
-    const n = parseInt(document.getElementById("locationsCount").value);
-    if (!n || n <= 0) return alert("Enter a valid number of locations");
+    const budgetStr = document.getElementById("budgetA").value;
+    const thresholdStr = document.getElementById("thresholdA").value;
+    const countStr = document.getElementById("locationsCount").value;
+
+    // 1. Gatekeeper checks for Budget and Threshold before building the table
+    if (budgetStr !== "" && parseFloat(budgetStr) <= 0) {
+        showCustomError("btnGenerateLocA", "Distance Budget must be greater than 0.");
+        return;
+    }
+    if (thresholdStr !== "" && parseInt(thresholdStr) < 0) {
+        showCustomError("btnGenerateLocA", "Category Threshold cannot be negative.");
+        return;
+    }
+
+    // 2. Standard checks for Locations Count
+    if (countStr === "") {
+        showCustomError("btnGenerateLocA", "Please enter a number of locations.");
+        return;
+    }
+
+    const locCount = parseInt(countStr);
+    if (locCount < 0) {
+        showCustomError("btnGenerateLocA", "Number of Locations cannot be negative.");
+        return;
+    }
+    if (locCount === 0) {
+        showCustomError("btnGenerateLocA", "Number of Locations must be at least 1.");
+        return;
+    }
 
     let html = `<table class="generated-table"><thead><tr><th>Location Name</th><th>Score</th><th>Category</th></tr></thead><tbody>`;
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < locCount; i++) {
         html += `<tr>
             <td><input type="text" placeholder="Location ${i + 1}"></td>
             <td><input type="number" placeholder="Score"></td>
@@ -143,10 +208,35 @@ function generateLocationsTable() {
 function generateDistanceMatrixA() {
     const startNode = document.getElementById("startA").value.trim();
     const endNode = document.getElementById("endA").value.trim();
-    const n = parseInt(document.getElementById("locationsCount").value);
+    const budgetStr = document.getElementById("budgetA").value;
+    const thresholdStr = document.getElementById("thresholdA").value;
+    const countStr = document.getElementById("locationsCount").value;
 
-    if (!n || n <= 0 || !startNode || !endNode) {
-        return alert("Please enter the Start, End, and Number of Locations first.");
+    // 1. Gatekeeper checks
+    if (budgetStr !== "" && parseFloat(budgetStr) <= 0) {
+        showCustomError("btnGenerateMatrixA", "Distance Budget must be greater than 0.");
+        return;
+    }
+    if (thresholdStr !== "" && parseInt(thresholdStr) < 0) {
+        showCustomError("btnGenerateMatrixA", "Category Threshold cannot be negative.");
+        return;
+    }
+
+    // 2. Standard Matrix checks
+    if (!startNode || !endNode || countStr === "") {
+        showCustomError("btnGenerateMatrixA", "Please enter the Start, End, and Number of Locations first.");
+        return;
+    }
+
+    const n = parseInt(countStr);
+    
+    if (n < 0) {
+        showCustomError("btnGenerateMatrixA", "Number of Locations cannot be a negative number.");
+        return;
+    }
+    if (n === 0) {
+        showCustomError("btnGenerateMatrixA", "Number of Locations must be at least 1.");
+        return;
     }
 
     const totalNodes = n + 2; 
@@ -164,13 +254,23 @@ function generateDistanceMatrixA() {
 
 // PART B Generators
 function generateRequestsTable() {
-    const reqCount = parseInt(document.getElementById("requestCount").value);
-    if (!reqCount || reqCount < 1) {
-        alert("Please enter a valid number of requests.");
+    const reqCountStr = document.getElementById("requestCount").value;
+    
+    if (reqCountStr === "") {
+        showCustomError("btnGenerateReqB", "Please enter a number of requests.");
         return;
     }
 
-    // 1. Memorize existing data before overwriting
+    const reqCount = parseInt(reqCountStr);
+    if (reqCount < 0) {
+        showCustomError("btnGenerateReqB", "Number of Requests cannot be negative.");
+        return;
+    }
+    if (reqCount === 0) {
+        showCustomError("btnGenerateReqB", "Number of Requests must be at least 1.");
+        return;
+    }
+
     const existingRows = document.querySelectorAll("#requestsTableContainer tbody tr");
     let savedData = [];
     if (existingRows) {
@@ -185,7 +285,6 @@ function generateRequestsTable() {
         });
     }
 
-    // 2. Build the new table
     let html = `<table class="generated-table">
         <thead>
             <tr>
@@ -198,7 +297,6 @@ function generateRequestsTable() {
         <tbody>`;
     
     for (let i = 0; i < reqCount; i++) {
-        // Retrieve saved values if they exist for this row, otherwise leave blank
         let p = "", d = "", b = "", f = "";
         if (i < savedData.length) {
             p = savedData[i].pickup;
@@ -241,20 +339,17 @@ function generateDistanceMatrixB() {
     const n = locations.length;
 
     if (n < 2) {
-        alert("Please ensure Start, End, and at least one request are filled in first.");
+        showCustomError("btnGenerateMatrixB", "Please ensure Start, End, and at least one request are filled in first.");
         return;
     }
 
-    // 1. Memorize existing matrix data by mapping Row Name to Column Name
     let savedMatrix = {};
     const existingTable = document.querySelector("#distanceMatrixB table");
     
     if (existingTable) {
-        // Get the header names (skipping the first empty top-left cell)
         const headers = Array.from(existingTable.querySelectorAll("th")).slice(1).map(th => th.innerText.trim());
         const rows = existingTable.querySelectorAll("tr");
         
-        // Loop through rows (skipping the header row itself)
         for(let i = 1; i < rows.length; i++) {
             const rowLabel = rows[i].querySelector("td strong").innerText.trim();
             savedMatrix[rowLabel] = {};
@@ -265,19 +360,17 @@ function generateDistanceMatrixB() {
         }
     }
 
-    // 2. Generate the new matrix
     let html = `<div class="matrix-container"><table class="generated-table">`;
     html += `<tr><th></th>${locations.map(loc => `<th>${loc}</th>`).join('')}</tr>`;
 
     for (let i = 0; i < n; i++) {
         let rowLoc = locations[i];
-        html += `<tr><td><strong>${rowLoc}</strong></td>`; // Row Label
+        html += `<tr><td><strong>${rowLoc}</strong></td>`; 
         
         for (let j = 0; j < n; j++) {
             let colLoc = locations[j];
             let val = i === j ? 0 : ''; 
             
-            // Check if we have a saved value for this exact Row to Column path
             if (savedMatrix[rowLoc] && savedMatrix[rowLoc][colLoc] !== undefined) {
                 val = savedMatrix[rowLoc][colLoc];
             }
@@ -306,12 +399,41 @@ function generateDistanceMatrixB() {
 function runPartA() {
     const startNode = document.getElementById("startA").value.trim();
     const endNode = document.getElementById("endA").value.trim();
-    const budget = parseFloat(document.getElementById("budgetA").value) || 0;
-    const threshold = parseInt(document.getElementById("thresholdA").value) || 1;
-    const numLocations = parseInt(document.getElementById("locationsCount").value) || 0;
+    const budgetStr = document.getElementById("budgetA").value;
+    const thresholdStr = document.getElementById("thresholdA").value;
 
-    if (!startNode || !endNode || numLocations === 0) return alert("Please fill in the Start, End, and generate the Locations Table.");
+    // 1. Completely Distinct Checks for Missing Inputs
+    if (!startNode) {
+        showCustomError("btnRunPartA", "Please enter a Start Location.");
+        return;
+    }
+    if (!endNode) {
+        showCustomError("btnRunPartA", "Please enter an End Location.");
+        return;
+    }
+    if (budgetStr === "") {
+        showCustomError("btnRunPartA", "Please enter a Distance Budget.");
+        return;
+    }
+    if (thresholdStr === "") {
+        showCustomError("btnRunPartA", "Please enter a Category Threshold.");
+        return;
+    }
 
+    const budget = parseFloat(budgetStr);
+    const threshold = parseInt(thresholdStr);
+
+    // 2. Distinct Checks for Absurd/Negative Values
+    if (budget <= 0) {
+        showCustomError("btnRunPartA", "Distance Budget must be greater than 0.");
+        return;
+    }
+    if (threshold < 0) {
+        showCustomError("btnRunPartA", "Category Threshold cannot be a negative number.");
+        return;
+    }
+
+    // 3. Extract Locations Table
     const locRows = document.getElementById("locationsTableContainer").querySelectorAll('tbody tr');
     let locationsPayload = {};
     let intermediateNodes = [];
@@ -320,20 +442,38 @@ function runPartA() {
         const inputs = row.querySelectorAll('input');
         const locName = inputs[0].value.trim();
         if (locName) {
-            locationsPayload[locName] = { "score": parseFloat(inputs[1].value) || 0, "category": inputs[2].value.trim() };
+            // Check if score is absurdly negative (optional but good practice)
+            let score = parseFloat(inputs[1].value);
+            if (score < 0) score = 0; 
+
+            locationsPayload[locName] = { "score": score || 0, "category": inputs[2].value.trim() };
             intermediateNodes.push(locName);
         }
     });
 
+    // 4. Extract Matrix
     const allNodes = [startNode, ...intermediateNodes, endNode];
     const matrixArray = extractDistanceMatrix("distanceMatrixA", allNodes.length);
     
     let distanceDict = {};
-    allNodes.forEach((node1, i) => {
+    
+    // Matrix Negative Validation
+    for (let i = 0; i < allNodes.length; i++) {
+        let node1 = allNodes[i];
         distanceDict[node1] = {};
-        allNodes.forEach((node2, j) => distanceDict[node1][node2] = matrixArray[i][j]);
-    });
+        for (let j = 0; j < allNodes.length; j++) {
+            let node2 = allNodes[j];
+            let distValue = parseFloat(matrixArray[i][j]);
+            
+            if (distValue < 0) {
+                showCustomError("btnRunPartA", "Distances cannot be negative. Please correct the Distance Matrix.");
+                return;
+            }
+            distanceDict[node1][node2] = distValue;
+        }
+    }
 
+    // 5. Construct and Send Payload
     const payloadA = {
         "start": startNode, "end": endNode, "distance_budget": budget,
         "category_threshold": threshold, "locations": locationsPayload, "distance_matrix": distanceDict
@@ -349,14 +489,11 @@ function runPartA() {
     .then(data => {
         if (data.status === 'success') {
             const res = data.data;
-            
-            // Calculate the total distance of the optimal route using the matrix
             let totalDist = 0;
             for (let i = 0; i < res.optimal_route.length - 1; i++) {
                 totalDist += distanceDict[res.optimal_route[i]][res.optimal_route[i+1]];
             }
 
-            // Display Route, Distance, and Score
             outputBox.innerHTML = `
                 <strong>Optimal Route Found:</strong> ${res.optimal_route.join(' → ')}<br><br>
                 <strong>Total Distance:</strong> ${totalDist} km<br><br>
@@ -369,48 +506,88 @@ function runPartA() {
         }
     })
     .catch((error) => outputBox.innerHTML = `<strong style="color:red;">Connection Error:</strong> Ensure the Flask server is running in your terminal.`);  
-    
 }
 
 function runPartB() {
     const startNode = document.getElementById("startB").value.trim();
     const endNode = document.getElementById("endB").value.trim();
-    const capacity = parseInt(document.getElementById("capacityB").value) || 1;
-    const numRequests = parseInt(document.getElementById("requestCount").value) || 0;
+    const capacityStr = document.getElementById("capacityB").value;
+    const reqCountStr = document.getElementById("requestCount").value;
 
-    if (!startNode || !endNode || numRequests === 0) return alert("Please fill in the Start, End, and generate the Requests Table.");
+    if (!startNode || !endNode || capacityStr === "" || reqCountStr === "") {
+        showCustomError("btnRunPartB", "Please fill in all the main parameters (Start, End, Capacity, Requests) before running.");
+        return;
+    }
+    
+    const capacity = parseInt(capacityStr);
+    const reqCount = parseInt(reqCountStr);
+
+    if (capacity < 0) {
+        showCustomError("btnRunPartB", "Vehicle Capacity cannot be a negative number.");
+        return;
+    }
+    if (capacity === 0) {
+        showCustomError("btnRunPartB", "Vehicle Capacity must be at least 1.");
+        return;
+    }
+    if (reqCount <= 0) {
+        showCustomError("btnRunPartB", "Number of Requests must be 1 or greater.");
+        return;
+    }
 
     const reqRows = document.getElementById("requestsTableContainer").querySelectorAll('tbody tr');
     let requestsPayload = {};
 
-    reqRows.forEach((row, index) => {
-        const inputs = row.querySelectorAll('input');
-        requestsPayload["Req" + (index + 1)] = {
-            "pickup": inputs[0].value.trim(), "drop": inputs[1].value.trim(),
-            "base_distance": parseFloat(inputs[2].value) || 0, "flexibility_margin": parseFloat(inputs[3].value) || 0
+    // Validate Requests for negative values while building payload
+    for (let i = 0; i < reqRows.length; i++) {
+        const inputs = reqRows[i].querySelectorAll('input');
+        const baseDist = parseFloat(inputs[2].value);
+        const flexMargin = parseFloat(inputs[3].value);
+        
+        if (baseDist < 0 || flexMargin < 0) {
+            showCustomError("btnRunPartB", `Request ${i + 1} contains negative values for Base Distance or Flexibility.`);
+            return;
+        }
+        
+        requestsPayload["Req" + (i + 1)] = {
+            "pickup": inputs[0].value.trim(), 
+            "drop": inputs[1].value.trim(),
+            "base_distance": baseDist || 0, 
+            "flexibility_margin": flexMargin || 0
         };
-    });
-    // Ensure extraction order exactly matches the Matrix generation order
+    }
+
     let uniqueLocs = new Set();
     if (startNode) uniqueLocs.add(startNode);
-    Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.pickup)); // All Pickups
-    Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.drop));   // All Drops
+    Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.pickup)); 
+    Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.drop));   
     if (endNode) uniqueLocs.add(endNode);
     const uniqueNodes = Array.from(uniqueLocs);
     const matrixArray = extractDistanceMatrix("distanceMatrixB", uniqueNodes.length);
     
     let distanceDict = {};
-    uniqueNodes.forEach((node1, i) => {
+    
+    // Matrix Negative Validation
+    for (let i = 0; i < uniqueNodes.length; i++) {
+        let node1 = uniqueNodes[i];
         distanceDict[node1] = {};
-        uniqueNodes.forEach((node2, j) => distanceDict[node1][node2] = matrixArray[i][j]);
-    });
+        for (let j = 0; j < uniqueNodes.length; j++) {
+            let node2 = uniqueNodes[j];
+            let distValue = parseFloat(matrixArray[i][j]);
+            
+            if (distValue < 0) {
+                showCustomError("btnRunPartB", "Distances cannot be negative. Please correct the Distance Matrix.");
+                return;
+            }
+            distanceDict[node1][node2] = distValue;
+        }
+    }
 
-    // Construct Final Payload for Batch Processing
     const payloadB = {
         "start": startNode,
         "end": endNode,
         "vehicle_capacity": capacity,
-        "requests": requestsPayload, // Sending ALL requests instead of just Req1
+        "requests": requestsPayload,
         "distance_matrix": distanceDict
     };
 
@@ -443,21 +620,17 @@ function runPartB() {
    5. RESET (PART B ONLY)
    ================================================== */
 function resetPartB() {
-    // 1. Clear the top form inputs
     document.getElementById("startB").value = "";
     document.getElementById("endB").value = "";
     document.getElementById("capacityB").value = "";
     document.getElementById("requestCount").value = "";
 
-    // 2. Empty out the generated requests table and distance matrix
     document.getElementById("requestsTableContainer").innerHTML = "";
     document.getElementById("distanceMatrixB").innerHTML = "";
 
-    // 3. Reset the output box back to its default message
     const outputBox = document.querySelector("#ridesharing-view .output-box");
     outputBox.innerHTML = `<strong>Part B Output</strong><br><br>Results will appear here after execution.`;
 
-    // 4. Hide and clear the map (remove drawn route + markers, keep the map instance)
     const mapContainerB = document.getElementById("mapContainerB");
     mapContainerB.style.display = "none";
 

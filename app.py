@@ -1,3 +1,4 @@
+import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import math
@@ -31,11 +32,14 @@ def generate_virtual_coordinates(node_names):
 
 @app.route('/api/optimize_a', methods=['POST'])
 def run_optimization_a():
+    start_time = time.perf_counter()
     try:
         payload = request.get_json()
         result = optimize_route(payload)
         
-        # Get all unique nodes from the matrix
+        # Calculate and inject runtime
+        result["runtime"] = f"{round(time.perf_counter() - start_time, 4)}s"
+        
         all_nodes = list(payload["distance_matrix"].keys())
         result["coordinates"] = generate_virtual_coordinates(all_nodes)
         
@@ -45,11 +49,14 @@ def run_optimization_a():
 
 @app.route('/api/optimize_b', methods=['POST'])
 def run_optimization_b():
+    start_time = time.perf_counter()
     try:
         payload = request.get_json()
         result = insert_new_request(payload)
         
-        # Get all unique nodes from the matrix
+        # Calculate and inject runtime (Part B uses ms)
+        result["runtime_ms"] = round((time.perf_counter() - start_time) * 1000, 3)
+        
         all_nodes = list(payload["distance_matrix"].keys())
         result["coordinates"] = generate_virtual_coordinates(all_nodes)
         

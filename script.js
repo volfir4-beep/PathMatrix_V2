@@ -1,44 +1,53 @@
-function showCustomError(buttonId, message) {
-    const button = document.getElementById(buttonId);
-    if (!button) {
-        alert(message); // Fallback just in case the button ID is wrong
-        return;
+// ==================================================
+// 0. IN-LINE ERROR ENGINE
+// ==================================================
+function showInlineError(inputId, message) {
+    // Check if we passed an ID string or an actual HTML element (for dynamic tables)
+    const inputField = typeof inputId === 'string' ? document.getElementById(inputId) : inputId;
+    if (!inputField) return;
+
+    // 1. Wrap the input so adding text below doesn't break CSS Grid/Tables
+    let wrapper = inputField.parentElement;
+    if (!wrapper.classList.contains('inline-error-wrapper')) {
+        wrapper = document.createElement('div');
+        wrapper.className = 'inline-error-wrapper';
+        wrapper.style.display = 'flex';
+        wrapper.style.flexDirection = 'column';
+        wrapper.style.width = '100%';
+        inputField.parentNode.insertBefore(wrapper, inputField);
+        wrapper.appendChild(inputField);
     }
 
-    // 1. Remove any existing error banner above this button so they don't stack up
-    const existingError = button.previousElementSibling;
-    if (existingError && existingError.classList.contains('custom-error-alert')) {
-        existingError.remove();
-    }
+    // 2. Clear any existing error message in this wrapper so they don't stack
+    const existingError = wrapper.querySelector('.inline-error-text');
+    if (existingError) existingError.remove();
 
-    // 2. Create the new custom error banner
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'custom-error-alert';
-    errorDiv.innerHTML = `⚠️ ${message}`;
+    // 3. Apply the Red Border styling to the input box
+    inputField.style.border = "1px solid #d32f2f";
+    inputField.style.backgroundColor = "#fffcfc";
+
+    // 4. Create and inject the error message text below the input
+    const errorMsg = document.createElement('span');
+    errorMsg.className = 'inline-error-text';
+    errorMsg.innerHTML = message;
     
-    // 3. Apply the Red Background and White Font styling
-    Object.assign(errorDiv.style, {
-        backgroundColor: '#d32f2f',
-        color: 'white',
-        padding: '12px',
-        marginBottom: '15px',
-        borderRadius: '6px',
-        textAlign: 'center',
-        fontWeight: 'bold',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        transition: 'opacity 0.3s ease-in-out'
+    Object.assign(errorMsg.style, {
+        color: '#d32f2f',
+        fontSize: '12px',
+        marginTop: '6px',
+        textAlign: 'left',
+        fontWeight: '600'
     });
 
-    // 4. Inject it into the page directly above the button
-    button.parentNode.insertBefore(errorDiv, button);
+    wrapper.appendChild(errorMsg);
 
-    // 5. Automatically remove the error after 3.5 seconds
-    setTimeout(() => {
-        errorDiv.style.opacity = '0';
-        setTimeout(() => {
-            if (errorDiv.parentNode) errorDiv.remove();
-        }, 300);
-    }, 3500);
+    // 5. UX MAGIC: Automatically remove the error state as soon as the user starts typing to fix it!
+    inputField.addEventListener('input', function removeError() {
+        inputField.style.border = "";
+        inputField.style.backgroundColor = "";
+        if (errorMsg.parentNode) errorMsg.remove();
+        inputField.removeEventListener('input', removeError);
+    });
 }
 
 /* ==================================================
@@ -162,37 +171,36 @@ function extractDistanceMatrix(containerId, n) {
 }
 
 // PART A Generators
+// PART A Generators
 function generateLocationsTable() {
+    const startNode = document.getElementById("startA").value.trim();
+    const endNode = document.getElementById("endA").value.trim();
     const budgetStr = document.getElementById("budgetA").value;
     const thresholdStr = document.getElementById("thresholdA").value;
     const countStr = document.getElementById("locationsCount").value;
 
-    // 1. Gatekeeper checks for Budget and Threshold before building the table
-    if (budgetStr !== "" && parseFloat(budgetStr) <= 0) {
-        showCustomError("btnGenerateLocA", "Distance Budget must be greater than 0.");
-        return;
-    }
-    if (thresholdStr !== "" && parseInt(thresholdStr) < 0) {
-        showCustomError("btnGenerateLocA", "Category Threshold cannot be negative.");
-        return;
+    let hasError = false;
+
+    // Strict Gatekeeper: Check ALL fields before generating the table
+    if (!startNode) { showInlineError("startA", "Required."); hasError = true; }
+    if (!endNode) { showInlineError("endA", "Required."); hasError = true; }
+    
+    if (budgetStr === "") { showInlineError("budgetA", "Required."); hasError = true; } 
+    else if (parseFloat(budgetStr) <= 0) { showInlineError("budgetA", "Must be > 0."); hasError = true; }
+    
+    if (thresholdStr === "") { showInlineError("thresholdA", "Required."); hasError = true; } 
+    else if (parseInt(thresholdStr) < 0) { showInlineError("thresholdA", "Cannot be negative."); hasError = true; }
+    
+    if (countStr === "") { showInlineError("locationsCount", "Required."); hasError = true; } 
+    else {
+        const locCount = parseInt(countStr);
+        if (locCount < 0) { showInlineError("locationsCount", "Cannot be negative."); hasError = true; } 
+        else if (locCount === 0) { showInlineError("locationsCount", "Must be at least 1."); hasError = true; }
     }
 
-    // 2. Standard checks for Locations Count
-    if (countStr === "") {
-        showCustomError("btnGenerateLocA", "Please enter a number of locations.");
-        return;
-    }
+    if (hasError) return; // Completely block table generation if anything is missing/invalid
 
     const locCount = parseInt(countStr);
-    if (locCount < 0) {
-        showCustomError("btnGenerateLocA", "Number of Locations cannot be negative.");
-        return;
-    }
-    if (locCount === 0) {
-        showCustomError("btnGenerateLocA", "Number of Locations must be at least 1.");
-        return;
-    }
-
     let html = `<table class="generated-table"><thead><tr><th>Location Name</th><th>Score</th><th>Category</th></tr></thead><tbody>`;
     for (let i = 0; i < locCount; i++) {
         html += `<tr>
@@ -212,33 +220,27 @@ function generateDistanceMatrixA() {
     const thresholdStr = document.getElementById("thresholdA").value;
     const countStr = document.getElementById("locationsCount").value;
 
-    // 1. Gatekeeper checks
-    if (budgetStr !== "" && parseFloat(budgetStr) <= 0) {
-        showCustomError("btnGenerateMatrixA", "Distance Budget must be greater than 0.");
-        return;
-    }
-    if (thresholdStr !== "" && parseInt(thresholdStr) < 0) {
-        showCustomError("btnGenerateMatrixA", "Category Threshold cannot be negative.");
-        return;
+    let hasError = false;
+
+    // Strict Gatekeeper: Check ALL fields before generating the matrix
+    if (!startNode) { showInlineError("startA", "Required."); hasError = true; }
+    if (!endNode) { showInlineError("endA", "Required."); hasError = true; }
+    
+    if (budgetStr === "") { showInlineError("budgetA", "Required."); hasError = true; } 
+    else if (parseFloat(budgetStr) <= 0) { showInlineError("budgetA", "Must be > 0."); hasError = true; }
+    
+    if (thresholdStr === "") { showInlineError("thresholdA", "Required."); hasError = true; } 
+    else if (parseInt(thresholdStr) < 0) { showInlineError("thresholdA", "Cannot be negative."); hasError = true; }
+    
+    if (countStr === "") { showInlineError("locationsCount", "Required."); hasError = true; } 
+    else {
+        const nCheck = parseInt(countStr);
+        if (nCheck <= 0) { showInlineError("locationsCount", "Must be at least 1."); hasError = true; }
     }
 
-    // 2. Standard Matrix checks
-    if (!startNode || !endNode || countStr === "") {
-        showCustomError("btnGenerateMatrixA", "Please enter the Start, End, and Number of Locations first.");
-        return;
-    }
+    if (hasError) return;
 
     const n = parseInt(countStr);
-    
-    if (n < 0) {
-        showCustomError("btnGenerateMatrixA", "Number of Locations cannot be a negative number.");
-        return;
-    }
-    if (n === 0) {
-        showCustomError("btnGenerateMatrixA", "Number of Locations must be at least 1.");
-        return;
-    }
-
     const totalNodes = n + 2; 
     let html = `<div class="matrix-container"><table class="generated-table">`;
     for (let i = 0; i < totalNodes; i++) {
@@ -251,26 +253,32 @@ function generateDistanceMatrixA() {
     html += `</table></div><p style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">* Matrix order: Start, Intermediates 1-${n}, End.</p>`;
     document.getElementById("distanceMatrixA").innerHTML = html;
 }
-
 // PART B Generators
 function generateRequestsTable() {
+    const startNode = document.getElementById("startB").value.trim();
+    const endNode = document.getElementById("endB").value.trim();
+    const capacityStr = document.getElementById("capacityB").value;
     const reqCountStr = document.getElementById("requestCount").value;
     
-    if (reqCountStr === "") {
-        showCustomError("btnGenerateReqB", "Please enter a number of requests.");
-        return;
+    let hasError = false;
+
+    // Strict Gatekeeper: Check ALL top fields before generating the requests table
+    if (!startNode) { showInlineError("startB", "Required."); hasError = true; }
+    if (!endNode) { showInlineError("endB", "Required."); hasError = true; }
+    
+    if (capacityStr === "") { showInlineError("capacityB", "Required."); hasError = true; } 
+    else if (parseInt(capacityStr) <= 0) { showInlineError("capacityB", "Must be at least 1."); hasError = true; }
+    
+    if (reqCountStr === "") { showInlineError("requestCount", "Required."); hasError = true; } 
+    else {
+        const reqCount = parseInt(reqCountStr);
+        if (reqCount <= 0) { showInlineError("requestCount", "Must be at least 1."); hasError = true; }
     }
+
+    // Block table generation instantly if anything is missing or invalid
+    if (hasError) return;
 
     const reqCount = parseInt(reqCountStr);
-    if (reqCount < 0) {
-        showCustomError("btnGenerateReqB", "Number of Requests cannot be negative.");
-        return;
-    }
-    if (reqCount === 0) {
-        showCustomError("btnGenerateReqB", "Number of Requests must be at least 1.");
-        return;
-    }
-
     const existingRows = document.querySelectorAll("#requestsTableContainer tbody tr");
     let savedData = [];
     if (existingRows) {
@@ -299,12 +307,11 @@ function generateRequestsTable() {
     for (let i = 0; i < reqCount; i++) {
         let p = "", d = "", b = "", f = "";
         if (i < savedData.length) {
-            p = savedData[i].pickup;
-            d = savedData[i].drop;
-            b = savedData[i].base;
+            p = savedData[i].pickup; 
+            d = savedData[i].drop; 
+            b = savedData[i].base; 
             f = savedData[i].flex;
         }
-        
         html += `<tr>
             <td><input type="text" value="${p}" placeholder="e.g. A"></td>
             <td><input type="text" value="${d}" placeholder="e.g. B"></td>
@@ -320,17 +327,33 @@ function generateRequestsTable() {
 function generateDistanceMatrixB() {
     const startNode = document.getElementById("startB").value.trim();
     const endNode = document.getElementById("endB").value.trim();
+    const capacityStr = document.getElementById("capacityB").value;
+    const reqCountStr = document.getElementById("requestCount").value;
+    
+    let hasError = false;
+
+    // Strict Gatekeeper checks for Part B Matrix
+    if (!startNode) { showInlineError("startB", "Required."); hasError = true; }
+    if (!endNode) { showInlineError("endB", "Required."); hasError = true; }
+    
+    if (capacityStr === "") { showInlineError("capacityB", "Required."); hasError = true; } 
+    else if (parseInt(capacityStr) <= 0) { showInlineError("capacityB", "Must be at least 1."); hasError = true; }
+    
+    if (reqCountStr === "") { showInlineError("requestCount", "Required."); hasError = true; } 
+    else if (parseInt(reqCountStr) <= 0) { showInlineError("requestCount", "Must be at least 1."); hasError = true; }
+
     const reqRows = document.querySelectorAll("#requestsTableContainer tbody tr");
+    if (reqRows.length === 0) {
+        hasError = true; 
+    }
+
+    if (hasError) return;
 
     let uniqueLocs = new Set();
-
     if (startNode) uniqueLocs.add(startNode);
     reqRows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         if (inputs[0].value.trim()) uniqueLocs.add(inputs[0].value.trim()); 
-    });
-    reqRows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
         if (inputs[1].value.trim()) uniqueLocs.add(inputs[1].value.trim()); 
     });
     if (endNode) uniqueLocs.add(endNode);
@@ -338,10 +361,7 @@ function generateDistanceMatrixB() {
     const locations = Array.from(uniqueLocs);
     const n = locations.length;
 
-    if (n < 2) {
-        showCustomError("btnGenerateMatrixB", "Please ensure Start, End, and at least one request are filled in first.");
-        return;
-    }
+    if (n < 2) return;
 
     let savedMatrix = {};
     const existingTable = document.querySelector("#distanceMatrixB table");
@@ -349,14 +369,11 @@ function generateDistanceMatrixB() {
     if (existingTable) {
         const headers = Array.from(existingTable.querySelectorAll("th")).slice(1).map(th => th.innerText.trim());
         const rows = existingTable.querySelectorAll("tr");
-        
         for(let i = 1; i < rows.length; i++) {
             const rowLabel = rows[i].querySelector("td strong").innerText.trim();
             savedMatrix[rowLabel] = {};
             const inputs = rows[i].querySelectorAll("input");
-            inputs.forEach((input, j) => {
-                savedMatrix[rowLabel][headers[j]] = input.value;
-            });
+            inputs.forEach((input, j) => { savedMatrix[rowLabel][headers[j]] = input.value; });
         }
     }
 
@@ -366,25 +383,11 @@ function generateDistanceMatrixB() {
     for (let i = 0; i < n; i++) {
         let rowLoc = locations[i];
         html += `<tr><td><strong>${rowLoc}</strong></td>`; 
-        
         for (let j = 0; j < n; j++) {
             let colLoc = locations[j];
             let val = i === j ? 0 : ''; 
-            
-            if (savedMatrix[rowLoc] && savedMatrix[rowLoc][colLoc] !== undefined) {
-                val = savedMatrix[rowLoc][colLoc];
-            }
-
-            html += `
-            <td>
-                <input
-                    type="number"
-                    value="${val}"
-                    placeholder="0"
-                    style="width:70px"
-                >
-            </td>
-            `;
+            if (savedMatrix[rowLoc] && savedMatrix[rowLoc][colLoc] !== undefined) { val = savedMatrix[rowLoc][colLoc]; }
+            html += `<td><input type="number" value="${val}" placeholder="0" style="width:70px"></td>`;
         }
         html += "</tr>";
     }
@@ -402,38 +405,37 @@ function runPartA() {
     const budgetStr = document.getElementById("budgetA").value;
     const thresholdStr = document.getElementById("thresholdA").value;
 
-    // 1. Completely Distinct Checks for Missing Inputs
+    let hasError = false;
+
     if (!startNode) {
-        showCustomError("btnRunPartA", "Please enter a Start Location.");
-        return;
+        showInlineError("startA", "Required.");
+        hasError = true;
     }
     if (!endNode) {
-        showCustomError("btnRunPartA", "Please enter an End Location.");
-        return;
+        showInlineError("endA", "Required.");
+        hasError = true;
     }
     if (budgetStr === "") {
-        showCustomError("btnRunPartA", "Please enter a Distance Budget.");
-        return;
+        showInlineError("budgetA", "Required.");
+        hasError = true;
+    } else if (parseFloat(budgetStr) <= 0) {
+        showInlineError("budgetA", "Must be > 0.");
+        hasError = true;
     }
+
     if (thresholdStr === "") {
-        showCustomError("btnRunPartA", "Please enter a Category Threshold.");
-        return;
+        showInlineError("thresholdA", "Required.");
+        hasError = true;
+    } else if (parseInt(thresholdStr) < 0) {
+        showInlineError("thresholdA", "Cannot be negative.");
+        hasError = true;
     }
+
+    if (hasError) return;
 
     const budget = parseFloat(budgetStr);
     const threshold = parseInt(thresholdStr);
 
-    // 2. Distinct Checks for Absurd/Negative Values
-    if (budget <= 0) {
-        showCustomError("btnRunPartA", "Distance Budget must be greater than 0.");
-        return;
-    }
-    if (threshold < 0) {
-        showCustomError("btnRunPartA", "Category Threshold cannot be a negative number.");
-        return;
-    }
-
-    // 3. Extract Locations Table
     const locRows = document.getElementById("locationsTableContainer").querySelectorAll('tbody tr');
     let locationsPayload = {};
     let intermediateNodes = [];
@@ -442,22 +444,21 @@ function runPartA() {
         const inputs = row.querySelectorAll('input');
         const locName = inputs[0].value.trim();
         if (locName) {
-            // Check if score is absurdly negative (optional but good practice)
             let score = parseFloat(inputs[1].value);
             if (score < 0) score = 0; 
-
             locationsPayload[locName] = { "score": score || 0, "category": inputs[2].value.trim() };
             intermediateNodes.push(locName);
         }
     });
 
-    // 4. Extract Matrix
     const allNodes = [startNode, ...intermediateNodes, endNode];
     const matrixArray = extractDistanceMatrix("distanceMatrixA", allNodes.length);
+    const matrixInputs = document.getElementById("distanceMatrixA").querySelectorAll('input');
     
     let distanceDict = {};
+    let matrixError = false;
     
-    // Matrix Negative Validation
+    // Matrix Negative Validation tied directly to the specific cell
     for (let i = 0; i < allNodes.length; i++) {
         let node1 = allNodes[i];
         distanceDict[node1] = {};
@@ -466,14 +467,15 @@ function runPartA() {
             let distValue = parseFloat(matrixArray[i][j]);
             
             if (distValue < 0) {
-                showCustomError("btnRunPartA", "Distances cannot be negative. Please correct the Distance Matrix.");
-                return;
+                let cellInput = matrixInputs[i * allNodes.length + j];
+                showInlineError(cellInput, "Cannot be negative.");
+                matrixError = true;
             }
             distanceDict[node1][node2] = distValue;
         }
     }
+    if (matrixError) return;
 
-    // 5. Construct and Send Payload
     const payloadA = {
         "start": startNode, "end": endNode, "distance_budget": budget,
         "category_threshold": threshold, "locations": locationsPayload, "distance_matrix": distanceDict
@@ -514,39 +516,57 @@ function runPartB() {
     const capacityStr = document.getElementById("capacityB").value;
     const reqCountStr = document.getElementById("requestCount").value;
 
-    if (!startNode || !endNode || capacityStr === "" || reqCountStr === "") {
-        showCustomError("btnRunPartB", "Please fill in all the main parameters (Start, End, Capacity, Requests) before running.");
-        return;
+    let hasError = false;
+
+    if (!startNode) {
+        showInlineError("startB", "Required.");
+        hasError = true;
     }
+    if (!endNode) {
+        showInlineError("endB", "Required.");
+        hasError = true;
+    }
+    if (capacityStr === "") {
+        showInlineError("capacityB", "Required.");
+        hasError = true;
+    } else if (parseInt(capacityStr) < 0) {
+        showInlineError("capacityB", "Cannot be negative.");
+        hasError = true;
+    } else if (parseInt(capacityStr) === 0) {
+        showInlineError("capacityB", "Must be at least 1.");
+        hasError = true;
+    }
+
+    if (reqCountStr === "") {
+        showInlineError("requestCount", "Required.");
+        hasError = true;
+    } else if (parseInt(reqCountStr) <= 0) {
+        showInlineError("requestCount", "Must be 1 or greater.");
+        hasError = true;
+    }
+
+    if (hasError) return;
     
     const capacity = parseInt(capacityStr);
-    const reqCount = parseInt(reqCountStr);
-
-    if (capacity < 0) {
-        showCustomError("btnRunPartB", "Vehicle Capacity cannot be a negative number.");
-        return;
-    }
-    if (capacity === 0) {
-        showCustomError("btnRunPartB", "Vehicle Capacity must be at least 1.");
-        return;
-    }
-    if (reqCount <= 0) {
-        showCustomError("btnRunPartB", "Number of Requests must be 1 or greater.");
-        return;
-    }
-
     const reqRows = document.getElementById("requestsTableContainer").querySelectorAll('tbody tr');
     let requestsPayload = {};
+    let reqError = false;
 
-    // Validate Requests for negative values while building payload
+    // Validate Requests for negative values, attaching errors directly to cells
     for (let i = 0; i < reqRows.length; i++) {
         const inputs = reqRows[i].querySelectorAll('input');
+        if (!inputs[0].value.trim() && !inputs[1].value.trim()) continue;
+
         const baseDist = parseFloat(inputs[2].value);
         const flexMargin = parseFloat(inputs[3].value);
         
-        if (baseDist < 0 || flexMargin < 0) {
-            showCustomError("btnRunPartB", `Request ${i + 1} contains negative values for Base Distance or Flexibility.`);
-            return;
+        if (baseDist < 0) {
+            showInlineError(inputs[2], "Cannot be negative.");
+            reqError = true;
+        }
+        if (flexMargin < 0) {
+            showInlineError(inputs[3], "Negative flexibility not allowed.");
+            reqError = true;
         }
         
         requestsPayload["Req" + (i + 1)] = {
@@ -556,6 +576,7 @@ function runPartB() {
             "flexibility_margin": flexMargin || 0
         };
     }
+    if (reqError) return;
 
     let uniqueLocs = new Set();
     if (startNode) uniqueLocs.add(startNode);
@@ -563,11 +584,14 @@ function runPartB() {
     Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.drop));   
     if (endNode) uniqueLocs.add(endNode);
     const uniqueNodes = Array.from(uniqueLocs);
+    
     const matrixArray = extractDistanceMatrix("distanceMatrixB", uniqueNodes.length);
+    const matrixInputs = document.getElementById("distanceMatrixB").querySelectorAll('input');
     
     let distanceDict = {};
+    let matrixError = false;
     
-    // Matrix Negative Validation
+    // Matrix Negative Validation tied directly to the specific cell
     for (let i = 0; i < uniqueNodes.length; i++) {
         let node1 = uniqueNodes[i];
         distanceDict[node1] = {};
@@ -576,12 +600,14 @@ function runPartB() {
             let distValue = parseFloat(matrixArray[i][j]);
             
             if (distValue < 0) {
-                showCustomError("btnRunPartB", "Distances cannot be negative. Please correct the Distance Matrix.");
-                return;
+                let cellInput = matrixInputs[i * uniqueNodes.length + j];
+                showInlineError(cellInput, "Cannot be negative.");
+                matrixError = true;
             }
             distanceDict[node1][node2] = distValue;
         }
     }
+    if (matrixError) return;
 
     const payloadB = {
         "start": startNode,

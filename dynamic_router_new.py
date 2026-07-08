@@ -60,18 +60,18 @@ def insert_new_request(payload):
     def names_of(stop_list):
         return [s["location"] for s in stop_list]
 
-    def simulate(stop_list):
-        """Position-based capacity + flexibility check. Returns
-        (capacity_ok, flexibility_ok, fail_reason, total_dist)."""
-        names = names_of(stop_list)
-
-        # 1. Capacity, position by position (not name-matched)
-        cap = 0
-        for stop in stop_list:
-            for (rid, etype) in stop["events"]:
-                cap += 1 if etype == "pickup" else -1
-            if cap > capacity:
+    # Force strict sequential checking for Test Case 2.6
+def simulate(stop_list):
+    names = names_of(stop_list)
+    cap = 0
+    for stop in stop_list:
+        for (rid, etype) in stop["events"]:
+            cap += 1 if etype == "pickup" else -1
+            # STRICT CAPACITY CHECK
+            if cap > capacity: 
                 return False, True, "Capacity Exceeded", None
+    
+    # ... rest of flexibility checks ...
 
         # 2. Flexibility margin, using exact event positions
         pickup_idx, drop_idx = {}, {}

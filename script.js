@@ -352,12 +352,16 @@ function generateDistanceMatrixB() {
     if (hasError) return;
 
     let uniqueLocs = new Set();
+
     if (startNode) uniqueLocs.add(startNode);
+    
+    // FIXED: Generate columns in strictly P1 -> D1 -> P2 -> D2 order
     reqRows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        if (inputs[0].value.trim()) uniqueLocs.add(inputs[0].value.trim()); 
-        if (inputs[1].value.trim()) uniqueLocs.add(inputs[1].value.trim()); 
+        if (inputs[0].value.trim()) uniqueLocs.add(inputs[0].value.trim()); // Pickup
+        if (inputs[1].value.trim()) uniqueLocs.add(inputs[1].value.trim()); // Dropoff
     });
+    
     if (endNode) uniqueLocs.add(endNode);
 
     const locations = Array.from(uniqueLocs);
@@ -583,10 +587,16 @@ function runPartB() {
     }
     if (reqError) return;
 
+    // FIXED: Extraction order now perfectly matches the generation order (P1, D1, P2, D2)
     let uniqueLocs = new Set();
+    
     if (startNode) uniqueLocs.add(startNode);
-    Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.pickup)); 
-    Object.values(requestsPayload).forEach(req => uniqueLocs.add(req.drop));   
+    
+    Object.values(requestsPayload).forEach(req => {
+        uniqueLocs.add(req.pickup);
+        uniqueLocs.add(req.drop);
+    });
+    
     if (endNode) uniqueLocs.add(endNode);
     const uniqueNodes = Array.from(uniqueLocs);
     

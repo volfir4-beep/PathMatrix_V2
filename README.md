@@ -52,11 +52,16 @@ This keeps the algorithm exact — guaranteed optimal, identical to full brute-f
 - Vehicle occupancy never exceeds `vehicle_capacity` at any point.
 - For each request `i`: distance traveled while that passenger is aboard must satisfy `d(pickup → drop via route) ≤ base_distance_i + flexibility_margin_i`.
 
-**Approach.** We run a depth-first search over all valid interleavings of pickup/dropoff events for every active request, branching on "pick up request X" or "drop off request X" at each step, and backtracking whenever a partial route already exceeds the best complete route found so far (Branch-and-Bound pruning). This guarantees the **global minimum-distance route**, not a locally-optimal insertion.
+**Approach — two modes, chosen automatically per request:**
 
-**Design trade-off, stated explicitly.** This is a full recomputation over *all* active requests on every call, rather than an incremental "insert one new request into the existing route" heuristic. We chose this deliberately: incremental insertion is faster per call but can miss the true optimum once multiple requests are active, since a locally-good insertion point for a new request can block a better global reordering. Branch-and-bound pruning keeps this fast in practice for realistic request counts (the search space collapses quickly once a good bound is found), at the cost of worse worst-case scaling than a pure insertion heuristic for very large numbers of simultaneous requests.
+1. **Incremental insertion (fast path).** When a new request arrives on top of an already-accepted route, we try every valid `(pickup_slot, drop_slot)` pair for slotting its pickup and dropoff into the *existing* stop sequence — including interleaved slots, not just appending at the end — and re-validate capacity plus **every** request's flexibility margin (old and new) against the resulting route. The cheapest feasible slot wins. No previous stop is ever reordered or removed; only the two new stops are placed.
+2. **Exact global search (fallback).** If incremental insertion can't find any feasible slot for the new request — or on the very first request, where there's no existing route to insert into — we fall back to a Branch-and-Bound DFS over **all** active requests: branching on "pick up request X" / "drop off request X" at each step, backtracking whenever a partial route already exceeds the best complete route found so far. This guarantees the true global-minimum-distance route.
 
-**Output.** Alongside the route and total distance, the backend also returns a stop-by-stop passenger count table (`passenger_counts`) showing occupancy at every pickup/dropoff, for use in the UI or in Part B's technical write-up.
+This gives cheap, near-instant updates for the common case of one request arriving at a time, while never accepting a route that's actually infeasible or leaving a request unnecessarily rejected just because the fast path couldn't place it — the exact search is always there as a safety net. Each API response reports which mode was used (`method: "incremental_insertion"`, `"global_recompute_fallback"`, or `"global_recompute"`), and the dashboard surfaces this to the user.
+
+**Statelessness.** The backend holds no server-side session — each accepted response includes the full stop/event sequence (`route_stops`), which the frontend caches and sends back as `previous_route_stops` on the next call. This keeps the API a pure function of its input, at the cost of the client being responsible for tracking "what was last accepted."
+
+**Output.** Alongside the route and total distance, the backend also returns a stop-by-stop passenger count table (`passenger_counts`) showing occupancy at every pickup/dropoff — rendered directly in the Part B dashboard output.
 
 ---
 
@@ -84,6 +89,8 @@ This keeps the algorithm exact — guaranteed optimal, identical to full brute-f
 Returns `optimal_route`, `total_score`, `feasible`, `runtime_ms`, plus `runtime` and `coordinates` injected by the API layer for the UI.
 
 ### `POST /api/optimize_b`
+
+First call (no prior route — always exact global search):
 ```json
 {
   "start": "S",
@@ -92,15 +99,27 @@ Returns `optimal_route`, `total_score`, `feasible`, `runtime_ms`, plus `runtime`
   "requests": {
     "Req1": { "pickup": "P1", "drop": "D1", "base_distance": 5, "flexibility_margin": 2 }
   },
-  "distance_matrix": {
-    "S":  { "S": 0, "P1": 4, "D1": 11, "E": 15 },
-    "P1": { "S": 4, "P1": 0, "D1": 5, "E": 12 },
-    "D1": { "S": 11, "P1": 5, "D1": 0, "E": 5 },
-    "E":  { "S": 15, "P1": 12, "D1": 5, "E": 0 }
-  }
+  "distance_matrix": { "...": "..." }
 }
 ```
-Returns `status` (`accepted`/`rejected`), `new_route`, `total_dist`, `passenger_counts`, `runtime_ms`, plus `coordinates`.
+
+Subsequent call, a new request arrives — pass back what the previous call returned as `route_stops`, plus the id of the new request, to attempt fast incremental insertion:
+```json
+{
+  "start": "S",
+  "end": "E",
+  "vehicle_capacity": 2,
+  "requests": {
+    "Req1": { "pickup": "P1", "drop": "D1", "base_distance": 5, "flexibility_margin": 2 },
+    "Req2": { "pickup": "P2", "drop": "D2", "base_distance": 4, "flexibility_margin": 3 }
+  },
+  "distance_matrix": { "...": "..." },
+  "previous_route_stops": [ "...as returned in the prior response's route_stops..." ],
+  "new_request_id": "Req2"
+}
+```
+
+Returns `status` (`accepted`/`rejected`), `new_route`, `total_dist`, `passenger_counts`, `route_stops` (cache this for the next call), `method` (`incremental_insertion` / `global_recompute_fallback` / `global_recompute`), `runtime_ms`, plus `coordinates`.
 
 ---
 
@@ -147,8 +166,8 @@ Both the backend and frontend must be running for the dashboard to function — 
 ## Roadmap / Bonus Directions
 
 - Route animation or 3D map visualization for step-by-step playback of a computed route.
-- Surfacing the `passenger_counts` table already returned by Part B's API in the dashboard UI.
 - Optional real-time traffic weighting on the distance matrix for Part A/B.
+- Persisting `route_stops` server-side (e.g. keyed by session) as an alternative to client-side caching, for multi-client scenarios.
 
 ---
 

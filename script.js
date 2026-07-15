@@ -94,6 +94,48 @@ let mapA, mapB;
 let pathLayerA, pathLayerB;
 let nodeLayersA = [], nodeLayersB = [];
 
+/* ==================================================
+   2b. PART B DYNAMIC-INSERTION STATE
+   Tracks the last accepted Part B route so a newly
+   added request can be sent as an incremental insertion
+   instead of forcing a full global recompute every time.
+   ================================================== */
+let lastPartBState = null; // { start, end, capacity, requests, routeStops }
+
+function buildIncrementalFields(startNode, endNode, capacity, requestsPayload) {
+    // Returns { previous_route_stops, new_request_id } if the current
+    // requests table is exactly the last accepted state PLUS one new
+    // request (nothing removed, nothing changed) -- otherwise null,
+    // meaning the backend should do a full global recompute.
+    if (!lastPartBState) return null;
+    if (lastPartBState.start !== startNode || lastPartBState.end !== endNode || lastPartBState.capacity !== capacity) {
+        return null;
+    }
+
+    const oldIds = Object.keys(lastPartBState.requests);
+    const newIds = Object.keys(requestsPayload);
+
+    // Every old request must still be present and unchanged.
+    for (const rid of oldIds) {
+        if (!(rid in requestsPayload)) return null;
+        const a = lastPartBState.requests[rid];
+        const b = requestsPayload[rid];
+        if (a.pickup !== b.pickup || a.drop !== b.drop ||
+            a.base_distance !== b.base_distance || a.flexibility_margin !== b.flexibility_margin) {
+            return null;
+        }
+    }
+
+    // Exactly one new request should have appeared.
+    const addedIds = newIds.filter(rid => !oldIds.includes(rid));
+    if (addedIds.length !== 1) return null;
+
+    return {
+        previous_route_stops: lastPartBState.routeStops,
+        new_request_id: addedIds[0]
+    };
+}
+
 function drawVirtualRoute(routeSequence, coordinateData, part) {
     const containerId = part === 'A' ? 'mapContainer' : 'mapContainerB';
     document.getElementById(containerId).style.display = 'block';
@@ -632,6 +674,16 @@ function runPartB() {
         "distance_matrix": distanceDict
     };
 
+    // If the current requests table is the last accepted route plus exactly
+    // one new request, attempt a fast incremental insertion instead of a
+    // full global recompute. Falls back automatically server-side if no
+    // feasible insertion slot exists.
+    const incrementalFields = buildIncrementalFields(startNode, endNode, capacity, requestsPayload);
+    if (incrementalFields) {
+        payloadB.previous_route_stops = incrementalFields.previous_route_stops;
+        payloadB.new_request_id = incrementalFields.new_request_id;
+    }
+
     const outputBox = document.querySelector("#ridesharing-view .output-box");
     outputBox.innerHTML = `<strong>Processing dynamic request...</strong>`;
 
@@ -644,13 +696,40 @@ function runPartB() {
             const res = data.data;
             let resultHTML = `<strong>Status:</strong> ${res.status.toUpperCase()}<br>`;
             if (res.status === 'accepted') {
+                const methodLabel = res.method === 'incremental_insertion'
+                    ? 'Incremental insertion (new request slotted into existing route)'
+                    : res.method === 'global_recompute_fallback'
+                        ? 'Global recomputation (no feasible insertion slot found)'
+                        : 'Global recomputation (exact search)';
+
+                let passengerRows = '';
+                (res.passenger_counts || []).forEach(row => {
+                    passengerRows += `<tr><td>${row.location}</td><td>${row.event}</td><td>${row.passengers}</td></tr>`;
+                });
+
                 resultHTML += `
                     <strong>New Route:</strong> ${res.new_route.join(' → ')}<br>
                     <strong>Total Travel Distance:</strong> ${res.total_dist} km<br>
+                    <strong>Routing Method:</strong> ${methodLabel}<br>
                     <hr>
+                    <strong>Passenger Count by Stop</strong>
+                    <table class="generated-table">
+                        <thead><tr><th>Location</th><th>Event</th><th>Passengers</th></tr></thead>
+                        <tbody>${passengerRows}</tbody>
+                    </table>
                     <small><em>Processing time: ${res.runtime_ms}ms</em></small>
                 `;
-                drawVirtualRoute(res.new_route, res.coordinates, 'B'); 
+                drawVirtualRoute(res.new_route, res.coordinates, 'B');
+
+                // Cache this accepted state so the NEXT new request can be
+                // sent as an incremental insertion.
+                lastPartBState = {
+                    start: startNode,
+                    end: endNode,
+                    capacity: capacity,
+                    requests: requestsPayload,
+                    routeStops: res.route_stops
+                };
             } else {
                 resultHTML += `<strong>Reason:</strong> ${res.reason}`;
             }
@@ -666,6 +745,8 @@ function runPartB() {
    5. RESET (PART B ONLY)
    ================================================== */
 function resetPartB() {
+    lastPartBState = null;
+
     document.getElementById("startB").value = "";
     document.getElementById("endB").value = "";
     document.getElementById("capacityB").value = "";

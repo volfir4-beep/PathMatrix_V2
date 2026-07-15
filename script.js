@@ -550,7 +550,7 @@ function runPartA() {
                     <strong>Total Distance:</strong> ${totalDist} km<br>
                     <strong>Total Effective Score:</strong> ${res.total_score}<br>
                     <hr>
-                    <small><em>Processing time: ${res.runtime}s</em></small>
+                    <small><em>Processing time: ${res.runtime}</em></small>
                 `;
                 
                 drawVirtualRoute(res.optimal_route, res.coordinates, 'A');
